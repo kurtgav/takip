@@ -1,0 +1,30 @@
+{
+  "_note": "All times are Asia/Manila (UTC+8). Check commands with: python orchestrate.py --check",
+
+  "feature_freeze": "2026-10-10T07:00",
+  "docs_final_run": "2026-10-10T07:15",
+  "hard_stop": "2026-10-10T09:15",
+  "deadline": "2026-10-10T10:00",
+
+  "codex": {
+    "enabled": true,
+    "command": ["codex", "exec", "--full-auto", "-c", "sandbox_workspace_write.network_access=true", "{prompt}"],
+    "session_timeout_minutes": 120,
+    "max_stabilize_runs": 2
+  },
+
+  "hermes": {
+    "enabled": true,
+    "command": ["hermes", "chat", "-q", "{prompt}"],
+    "first_run_delay_minutes": 15,
+    "interval_minutes": 120,
+    "session_timeout_minutes": 45
+  },
+
+  "git": {
+    "checkpoint_minutes": 20,
+    "push": true
+  },
+
+  "verify_command": ["npm", "run", "build"]
+}
