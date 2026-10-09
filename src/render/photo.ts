@@ -1,8 +1,10 @@
 import { paintCovers, paintWatermark } from './covers';
+import { stripPngMetadata } from './png';
 import type { Detection, Watermark } from '../types';
 
 function png(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The covered photo could not be saved.')), 'image/png'));
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The covered photo could not be saved.')), 'image/png'))
+    .then(stripPngMetadata);
 }
 
 export class LocalPhoto {
