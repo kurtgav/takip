@@ -1,9 +1,11 @@
+import { assetPath } from './asset';
+
 export interface NetworkCount { requests: number; blocked: number }
 
 export async function prepareOffline(): Promise<void> {
   if (import.meta.env.DEV) return;
   if (!('serviceWorker' in navigator) || !('caches' in window)) throw new Error('Offline storage is unavailable. Use current Chrome over HTTPS or localhost.');
-  const registration = await navigator.serviceWorker.register('/sw.js');
+  const registration = await navigator.serviceWorker.register(assetPath('sw.js'));
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => { cleanup(); reject(new Error('Offline setup could not finish. Check your connection and free storage, then retry.')); }, 120_000);
     const check = () => { if (navigator.serviceWorker.controller && registration.active) { cleanup(); resolve(); } };

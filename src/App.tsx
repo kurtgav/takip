@@ -73,7 +73,7 @@ export function App() {
   const steps = ['Reading text', 'Finding faces', 'Finding QR codes and barcodes', 'Checking sensitive information', 'Writing summary'];
   const step = steps.findIndex(text => progress.startsWith(text));
   return <main className="shell">
-    <header><a className="wordmark" href="/">TAKIP<span>Cover before you share.</span></a><span className="badge">On-device · 0 uploads</span></header>
+    <header><a className="wordmark" href={import.meta.env.BASE_URL}>TAKIP<span>Cover before you share.</span></a><span className="badge">On-device · 0 uploads</span></header>
     <div className="local-status" role="status"><span>{ready ? (import.meta.env.DEV ? 'Development mode' : 'Ready offline') : 'Setting up local tools'}</span><span data-testid="network-counter" title="Application requests during this photo. Browser update checks and unrelated tabs are outside this counter.">{network.requests} network requests · {network.blocked} blocked attempts</span></div>
     {result && pipeline.current ? <Review result={result} pipeline={pipeline.current} summary={summary} onReset={reset} /> : <>
       <section className="intro"><p className="eyebrow">A LITTLE COVER. A LOT MORE PRIVACY.</p><h1>Your photo.<br />Your information.<br /><em>Your choice.</em></h1><p>Cover personal details before they leave your hands. Everything happens right here, on your device.</p></section>

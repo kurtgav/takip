@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { MLCEngine, type AppConfig } from '@mlc-ai/web-llm';
+import { assetPath } from '../asset';
 import { allowedSummarySentences, categoriesPayload, normalizeSummaryCategories } from '../pipeline/summary-contract.ts';
 
 const MODEL_ID = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
@@ -14,11 +15,10 @@ self.addEventListener('message', async (event: MessageEvent<Request>) => {
   try {
     if (request.type === 'init') {
       if (!('gpu' in navigator)) throw new Error('Smart summary requires WebGPU on this device.');
-      const origin = self.location.origin;
       const appConfig: AppConfig = { model_list: [{
         model_id: MODEL_ID,
-        model: `${origin}/summary/qwen/resolve/main/`,
-        model_lib: `${origin}/summary/qwen.wasm`,
+        model: assetPath('summary/qwen/resolve/main/'),
+        model_lib: assetPath('summary/qwen.wasm'),
       }] };
       engine = new MLCEngine({
         appConfig,

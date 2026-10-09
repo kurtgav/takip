@@ -1,10 +1,11 @@
 import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
+import { assetPath } from '../asset';
 import type { Detection } from '../types';
 
 export async function createFaceDetector() {
-  const files = await FilesetResolver.forVisionTasks(`${self.location.origin}/vision`, true);
+  const files = await FilesetResolver.forVisionTasks(assetPath('vision'), true);
   const detector = await FaceDetector.createFromOptions(files, {
-    baseOptions: { modelAssetPath: `${self.location.origin}/models/face.tflite`, delegate: 'CPU' },
+    baseOptions: { modelAssetPath: assetPath('models/face.tflite'), delegate: 'CPU' },
     runningMode: 'IMAGE', minDetectionConfidence: 0.45,
   });
   return (image: OffscreenCanvas): Detection[] => {

@@ -1,11 +1,12 @@
 import { createWorker, OEM, PSM } from 'tesseract.js';
+import { assetPath } from '../asset';
 import type { Word } from '../types';
 
 export async function createOCR() {
   const worker = await createWorker('eng', OEM.LSTM_ONLY, {
-    workerPath: `${self.location.origin}/ocr/worker.min.js`,
-    corePath: `${self.location.origin}/ocr/core`,
-    langPath: `${self.location.origin}/ocr`,
+    workerPath: assetPath('ocr/worker.min.js'),
+    corePath: assetPath('ocr/core'),
+    langPath: assetPath('ocr'),
     workerBlobURL: false,
     cacheMethod: 'none',
   });

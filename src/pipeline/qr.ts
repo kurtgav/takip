@@ -1,8 +1,9 @@
 import { prepareZXingModule, readBarcodes } from 'zxing-wasm/reader';
+import { assetPath } from '../asset';
 import type { Detection } from '../types';
 
 export async function prepareCodes(): Promise<void> {
-  await prepareZXingModule({ overrides: { locateFile: () => `${self.location.origin}/wasm/zxing_reader.wasm` }, fireImmediately: true });
+  await prepareZXingModule({ overrides: { locateFile: () => assetPath('wasm/zxing_reader.wasm') }, fireImmediately: true });
 }
 
 export async function findCodes(image: ImageData): Promise<Detection[]> {

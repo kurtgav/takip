@@ -1,12 +1,13 @@
 import { env, pipeline } from '@huggingface/transformers';
+import { assetPath } from '../asset';
 import type { Detection, Word } from '../types';
 
 export async function createNER() {
   env.allowRemoteModels = false;
   env.allowLocalModels = true;
-  env.localModelPath = `${self.location.origin}/models/`;
+  env.localModelPath = assetPath('models/');
   env.useBrowserCache = false;
-  env.backends.onnx.wasm!.wasmPaths = `${self.location.origin}/wasm/`;
+  env.backends.onnx.wasm!.wasmPaths = assetPath('wasm/');
   env.backends.onnx.wasm!.numThreads = 1;
   const classifier = await pipeline('token-classification', 'ner', { dtype: 'q8', device: 'wasm', local_files_only: true });
   await classifier('Sample text.');
