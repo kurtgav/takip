@@ -1,6 +1,6 @@
 # TAKIP verification results
 
-Status: F1–F16 implemented and verified in the browser cases below; final combined browser run underway. F17 deferred. Tests use generated SAMPLE content and a labeled synthetic person. No private IDs or real screenshots used.
+Status: F1–F16 implemented and verified in the browser cases below. Final combined run: **11/11 browser tests PASSED in 2.8 minutes**, no skips or failures; 30/30 unit tests PASSED. F17 deferred. Tests use generated SAMPLE content and a labeled synthetic person. No private IDs or real screenshots used.
 
 ## Executed on 2026-10-09
 

@@ -71,3 +71,11 @@
 - Additional cached LLM reload initially failed because WebLLM skips its localhost WASM cache. Static precache now includes its small runtime. Fresh offline reload, cached initialization and real model inference PASSED; zero processing requests. Build and both Phase 7/summary browser checks passed in 31.7 seconds.
 - Current full run: lint PASSED, types PASSED, 30 unit tests PASSED, production build PASSED (53 precache entries, 224093.40 KiB). Final 11-browser-test run in progress.
 - Asset hashes PASSED: all 53 manifest assets match recorded sizes/SHA-256. Repository file limit check PASSED: 132 inspected non-dependency/non-output files, largest 68,067,328 bytes. Production dependency audit: zero vulnerabilities. No app debug logs/TODO paths found; synthetic fixture only. No deployment or Git mutations performed by Codex.
+
+## Complete — definition of done met
+
+- Final combined production-browser run PASSED: **11/11 tests, 2.8 minutes, no skips/failures**. Includes actual OCR/NER/face/codes, review/touch-up, opaque export and metadata stripping, watermark/share branches, offline fresh reload and export, guard suspension and update-install protection, cached real Qwen inference, PWA installability, dark/no-GPU flow, and F15/F16.
+- All P0 F1–F11 and P1 F12–F14 accepted against executed cases. P2 F15/F16 also implemented and verified. F17 deferred for lack of paired improvement evidence, not represented as shipped.
+- README, decisions, acceptance plan and eval/results updated. Light 320px review and dark phone-width screenshots inspected; no overflow. No real personal data introduced, no app debug placeholders or disabled safeguards. Existing orchestrator/content-agent changes preserved.
+- Physical camera/native OS sheet, target-phone performance, approximately 30-photo accuracy set, Safari and venue rehearsals remain NOT RUN. These are documented limits, not fabricated results. Deployment and human submission assets remain outside this implementation task.
+- ORCHESTRATOR_DONE.md created with scope, executed checks, cut reason and demo steps. Stop implementation; no optional refactoring remains necessary.
