@@ -5,6 +5,8 @@ import type { Detection } from '../types';
 export async function createFaceDetector() {
   const files = await FilesetResolver.forVisionTasks(assetPath('vision'), true);
   const detector = await FaceDetector.createFromOptions(files, {
+    // This runs in a worker; Safari-style user agents can trigger a DOM canvas fallback.
+    canvas: new OffscreenCanvas(1, 1),
     baseOptions: { modelAssetPath: assetPath('models/face.tflite'), delegate: 'CPU' },
     runningMode: 'IMAGE', minDetectionConfidence: 0.45,
   });

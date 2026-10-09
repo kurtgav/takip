@@ -1,10 +1,10 @@
 /// <reference lib="webworker" />
 import { cacheOfflineAsset } from './offline-download';
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision?: string }> };
-declare const __BUILD_VERSION__: string;
-
-const cacheName = `takip-core-${__BUILD_VERSION__}`;
 const manifest = self.__WB_MANIFEST;
+// Identical assets keep the same cache across orchestrator/docs-only rebuilds.
+const cacheName = crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(manifest)))
+  .then(hash => `takip-core-${Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')}`);
 const guardCacheName = 'takip-processing-guards';
 const guardUrl = (id: string) => new URL(`__processing_guard__/${encodeURIComponent(id)}`, self.registration.scope);
 let setupStatus = { type: 'OFFLINE_PROGRESS', text: 'Checking saved tools…' };
@@ -25,7 +25,7 @@ async function hasProcessingClient(): Promise<boolean> {
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     try {
-      const cache = await caches.open(cacheName);
+      const cache = await caches.open(await cacheName);
       let bytes = 0;
       let lastReport = 0;
       // Only static build assets enter this cache. Uploaded files and blob URLs never do.
@@ -47,7 +47,8 @@ self.addEventListener('install', event => {
 });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    for (const name of await caches.keys()) if (name.startsWith('takip-core-') && name !== cacheName) await caches.delete(name);
+    const currentCache = await cacheName;
+    for (const name of await caches.keys()) if (name.startsWith('takip-core-') && name !== currentCache) await caches.delete(name);
     await self.clients.claim();
   })());
 });
@@ -67,7 +68,7 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   if (!/^https?:/.test(event.request.url)) return;
   event.respondWith((async () => {
-    const cache = await caches.open(cacheName);
+    const cache = await caches.open(await cacheName);
     const url = new URL(event.request.url);
     const cached = event.request.method === 'GET' && url.origin === self.location.origin
       ? await cache.match(event.request, { ignoreSearch: true, ignoreVary: true })

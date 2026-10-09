@@ -83,7 +83,7 @@ export function App() {
         {busy && <ol className="scan-steps" aria-label="Scanning progress">{steps.map((text, index) => <li key={text} className={index === step ? 'active' : index < step ? 'complete' : ''}><span>{index < step ? '✓' : index + 1}</span>{text}</li>)}</ol>}
         {(!ready || busy) && !error && <p className="setup" role="status">{progress}</p>}
         {error && <div className="notice" role="alert"><p>{error}</p>{!ready && <button className="secondary" onClick={retry}>Retry setup</button>}</div>}
-        {!busy && <p className="caption">{ready ? 'Ready for airplane mode. ' : 'One-time download of local tools (about 230 MB). '}Use a clear, well-lit photo. Automatic checks can miss details; always review before sharing.</p>}
+        {!busy && <p className="caption">{ready ? 'Ready for airplane mode. ' : 'One-time download of local tools (about 205 MB). '}Use a clear, well-lit photo. Automatic checks can miss details; always review before sharing.</p>}
       </section>
       {!busy && <section className="smart-summary"><h2>Optional smart summary</h2><p className="caption">A small local language model chooses a short explanation. One-time download, about 290 MB. Only detected categories reach this model.</p>
         <button className="secondary" disabled={!ready || !gpuReady || smartLoading || smartReady} onClick={() => void prepareSummary()}>{smartReady ? 'Smart summary ready' : smartLoading ? 'Preparing smart summary…' : 'Download smart summary'}</button>

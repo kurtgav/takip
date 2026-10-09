@@ -27,6 +27,5 @@ export default defineConfig({
         'ocr/core/tesseract-core.wasm*', 'ocr/core/tesseract-core-simd.wasm*', 'ocr/core/tesseract-core-relaxedsimd.wasm*'],
     },
   })],
-  define: { __BUILD_VERSION__: JSON.stringify(Date.now().toString()) },
   worker: { format: 'es' },
 });

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, webkit } from '@playwright/test';
 import { samplePhoto } from './sample';
 
 test('setup reports failed downloads and retry reuses completed files', async ({ page, context }) => {
@@ -63,4 +63,48 @@ test('fresh offline reload scans and exports with zero processing requests', asy
   expect(blocked).toBe(true);
   // Chromium can retry a failed intercepted fetch; each blocked attempt is counted.
   await expect(page.getByTestId('network-counter')).toHaveText(/^0 network requests · [1-9]\d* blocked attempts$/);
+});
+
+test('WebKit caches local tools and reloads the app offline', async ({ baseURL }) => {
+  const browser = await webkit.launch();
+  try {
+    const context = await browser.newContext({ baseURL });
+    const page = await context.newPage();
+    await page.goto('/');
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller, {}, { timeout: 120_000 });
+    expect(await page.evaluate(async () => {
+      const name = (await caches.keys()).find(name => name.startsWith('takip-core-'));
+      return name ? !!await (await caches.open(name)).match(new URL('models/ner/onnx/model_quantized.onnx', location.href).href) : false;
+    })).toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Start with a photo' })).toBeVisible();
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+  } finally { await browser.close(); }
+});
+
+test('WebKit reloads offline and exports a locally processed photo', async ({ baseURL }) => {
+  const browser = await webkit.launch();
+  try {
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    await page.goto('/');
+    test.skip(await page.evaluate(() => typeof OffscreenCanvas === 'undefined'), 'This WebKit build lacks OffscreenCanvas; real Safari/iPhone photo processing remains unverified.');
+    const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
+    await expect(choose).toBeEnabled({ timeout: 120_000 });
+    const sample = await samplePhoto(page);
+    await context.setOffline(true);
+    await page.reload();
+    await expect(choose).toBeEnabled({ timeout: 120_000 });
+    const requests: string[] = [];
+    context.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
+    await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: sample });
+    await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
+    await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Save safe copy' }).click();
+    expect((await download).suggestedFilename()).toBe('takip-safe-copy.png');
+    expect(requests).toEqual([]);
+    await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
+  } finally { await browser.close(); }
 });

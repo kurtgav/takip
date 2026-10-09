@@ -22,7 +22,9 @@ npm run build
 npm run preview
 ```
 
-Open `http://localhost:4173`. Wait for **Ready offline** and enabled photo buttons before switching to airplane mode. Core first-load download is approximately 230 MB, including models and runtimes. Keep the tab open during setup. Use HTTPS when serving to a phone; ordinary LAN HTTP cannot install a service worker.
+Open `http://localhost:4173`. Wait for **Ready offline** and enabled photo buttons before switching to airplane mode. Core first-load assets total approximately 205 MB, including models and runtimes (network compression may reduce transfer size). Keep the tab open during setup; the status shows the current file count and downloaded megabytes. Use HTTPS when serving to a phone; ordinary LAN HTTP cannot install a service worker.
+
+Setup times out stalled transfers rather than healthy downloads that exceed two minutes. Failed HTTP responses, storage exhaustion and installation failures show an error with **Retry setup**. Retrying the same build reuses fully cached files; interrupted files are downloaded again. Cache identity comes from the asset manifest, so rebuilding unchanged app assets does not force another download. Only the LSTM OCR engine variants used by this app are precached.
 
 ## Deploy
 
@@ -41,13 +43,13 @@ Optional **Download smart summary** loads approximately 290 MB from the same sta
 npm run lint
 npm run typecheck
 npm test
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:browser
 ```
 
 Browser tests launch their own production preview, so stop any other server using port 4173 first. Tests generate clearly labeled SAMPLE images; screenshots/downloads go to the OS temporary directory. `eval/private/` is ignored and must never be committed.
 
-The real LLM browser test needs a working WebGPU device and full Playwright Chromium. Its GPU launch flags were verified on this Windows/NVIDIA test machine; software-only CI cannot prove real LLM inference. The remaining browser tests use normal headless Chromium and verify the standard-summary path.
+The real LLM browser test needs a working WebGPU device and full Playwright Chromium. Its GPU launch flags were verified on this Windows/NVIDIA test machine; software-only CI cannot prove real LLM inference. Core browser tests use headless Chromium and verify the standard-summary path. WebKit also checks installation and offline reopening. Its photo-processing test explicitly skips builds without OffscreenCanvas (including the Windows WebKit test runtime); this does not establish real iPhone/Safari processing compatibility.
 
 ## What runs locally
 
