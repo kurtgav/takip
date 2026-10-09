@@ -66,4 +66,10 @@ An independent Playwright session against the live HTTPS origin reproduced the o
 
 Deployed-artifact read-back: `index.html` references `/takip/assets/...`, `/takip/icon.svg` and `/takip/manifest.webmanifest`; `manifest.webmanifest` sets `start_url` and `scope` to `/takip/`; `sw.js` precaches scope-relative URLs (`index.html`, `wasm/zxing_reader.wasm`, …).
 
-**Not measured on the live host**: physical phone/camera performance, Safari/iOS, the accuracy corpus, venue rehearsal, native OS share sheet, and the optional WebGPU Qwen path (the live pass covers the standard local summary; the real local-LLM initialization and inference remain verified locally, as recorded above).
+**Not measured on the live host**: physical phone/camera performance, Safari/iOS, the accuracy corpus, venue rehearsal, and the native OS share sheet.
+
+### Smart-summary (WebGPU Qwen) verified live — same day
+
+The base-path refactor initially broke this path in production: `assetPath()` returned a path-only value (`/summary/qwen/resolve/main/`), and WebLLM calls `new URL(model)` on it, which throws `Failed to construct 'URL': Invalid URL`. The worker surfaced that as "Smart summary is unavailable", so the deployed build offered the model but could not initialize it. `src/asset.ts` was rewritten to return an **absolute** URL (origin + `BASE_URL` + path), and the fix (`78dc395`) is in the deployed head `f1c6df8`.
+
+An independent Playwright session against **https://kurtgav.github.io/takip/** then exercised the real path over HTTPS — **15 of 15 checks PASSED** with `failedAssets=0` and `badResponses=0`: page load, WebGPU + adapter available, pipeline ready on the live subpath (first-install precache of ~224 MB), smart summary offered, model downloaded and initialized, "Smart summary ready" state reached, context taken offline, the local model produced a 3-sentence summary, the summary leaked no raw PII, zero processing requests and zero HTTP requests while offline, no worker initialization errors, and no failed `/takip/` asset requests. The deployed bundle itself carries the fix (`new URL(\`/takip/${…}\`, self.location.origin).href`), and the same path passes **11/11** browser tests locally on a bundle rebuilt with `VITE_BASE=/takip/`.
