@@ -1,0 +1,8 @@
+# added by orchestrator
+eval/private/
+node_modules/
+dist/
+logs/
+.orchestrator/
+.env
+.env.*
