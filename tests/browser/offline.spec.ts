@@ -1,6 +1,35 @@
 import { expect, test } from '@playwright/test';
 import { samplePhoto } from './sample';
 
+test('setup reports failed downloads and retry reuses completed files', async ({ page, context }) => {
+  let failModel = true;
+  const fetched: string[] = [];
+  await context.route('**/*', async route => {
+    const url = route.request().url();
+    fetched.push(url);
+    if (failModel && url.endsWith('/models/ner/onnx/model_quantized.onnx')) {
+      await route.fulfill({ status: 503, body: 'Temporarily unavailable' });
+    } else await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByText(/Saving tools: file/)).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('HTTP 503', { timeout: 120_000 });
+  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeDisabled();
+  const completed = await page.evaluate(async () => {
+    const name = (await caches.keys()).find(name => name.startsWith('takip-core-'));
+    if (!name) return [];
+    return (await (await caches.open(name)).keys()).map(request => request.url);
+  });
+  expect(completed.length).toBeGreaterThan(0);
+  await page.waitForFunction(async () => !(await navigator.serviceWorker.getRegistration())?.installing);
+  fetched.length = 0;
+  failModel = false;
+  await page.getByRole('button', { name: 'Retry setup' }).click();
+  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  expect(fetched.filter(url => completed.includes(url))).toEqual([]);
+  await expect(page.getByText('Ready offline', { exact: true })).toBeVisible();
+});
+
 test('fresh offline reload scans and exports with zero processing requests', async ({ page, context }) => {
   await page.goto('/');
   const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });

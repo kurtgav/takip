@@ -19,7 +19,13 @@ export default defineConfig({
         { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
       ],
     },
-    injectManifest: { maximumFileSizeToCacheInBytes: 95 * 1024 * 1024, globPatterns: ['**/*.{js,css,html,svg,png,wasm,json,onnx,tflite,gz,mjs,txt}'], globIgnores: ['summary/qwen/**', 'summary/manifest.json'] },
+    injectManifest: {
+      maximumFileSizeToCacheInBytes: 95 * 1024 * 1024,
+      globPatterns: ['**/*.{js,css,html,svg,png,wasm,json,onnx,tflite,gz,mjs,txt}'],
+      // OCR uses LSTM_ONLY; retain all three LSTM variants for browser feature detection.
+      globIgnores: ['summary/qwen/**', 'summary/manifest.json',
+        'ocr/core/tesseract-core.wasm*', 'ocr/core/tesseract-core-simd.wasm*', 'ocr/core/tesseract-core-relaxedsimd.wasm*'],
+    },
   })],
   define: { __BUILD_VERSION__: JSON.stringify(Date.now().toString()) },
   worker: { format: 'es' },

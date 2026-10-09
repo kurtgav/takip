@@ -31,7 +31,7 @@ export function App() {
     const count = ({ data }: MessageEvent<NetworkCount & { type: string }>) => { if (data.type === 'NETWORK_COUNT') setNetwork(data); };
     navigator.serviceWorker?.addEventListener('message', count);
     setProgress('Saving local tools for offline use. Keep this tab open…');
-    void prepareOffline().then(async () => {
+    void prepareOffline(text => { if (current) setProgress(text); }).then(async () => {
       if (!current) return;
       client = new Pipeline(); pipeline.current = client;
       client.onProgress = text => { if (current) setProgress(text); };

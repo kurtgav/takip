@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-export {};
+import { cacheOfflineAsset } from './offline-download';
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision?: string }> };
 declare const __BUILD_VERSION__: string;
 
@@ -7,6 +7,14 @@ const cacheName = `takip-core-${__BUILD_VERSION__}`;
 const manifest = self.__WB_MANIFEST;
 const guardCacheName = 'takip-processing-guards';
 const guardUrl = (id: string) => new URL(`__processing_guard__/${encodeURIComponent(id)}`, self.registration.scope);
+let setupStatus = { type: 'OFFLINE_PROGRESS', text: 'Checking saved tools…' };
+
+async function reportSetup(type: string, text: string) {
+  setupStatus = { type, text };
+  for (const client of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) {
+    if (client.url.startsWith(self.registration.scope)) client.postMessage(setupStatus);
+  }
+}
 
 async function hasProcessingClient(): Promise<boolean> {
   const guards = await caches.open(guardCacheName);
@@ -16,11 +24,24 @@ async function hasProcessingClient(): Promise<boolean> {
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
-    const cache = await caches.open(cacheName);
-    // Only static build assets enter this cache. Uploaded files and blob URLs never do.
-    for (const entry of manifest) {
-      if (await hasProcessingClient()) throw new Error('Update deferred while a photo is open.');
-      await cache.add(new Request(new URL(entry.url, self.registration.scope), { cache: 'reload' }));
+    try {
+      const cache = await caches.open(cacheName);
+      let bytes = 0;
+      let lastReport = 0;
+      // Only static build assets enter this cache. Uploaded files and blob URLs never do.
+      for (const [index, entry] of manifest.entries()) {
+        if (await hasProcessingClient()) throw new Error('Update deferred while a photo is open.');
+        const report = () => reportSetup('OFFLINE_PROGRESS', `Saving tools: file ${index + 1} of ${manifest.length} · ${(bytes / 1e6).toFixed(1)} MB downloaded. Keep this tab open…`);
+        await report();
+        await cacheOfflineAsset(cache, new URL(entry.url, self.registration.scope), count => {
+          bytes += count;
+          if (Date.now() - lastReport >= 500) { lastReport = Date.now(); void report(); }
+        });
+      }
+      await reportSetup('OFFLINE_PROGRESS', 'Downloads complete. Starting local tools…');
+    } catch (error) {
+      await reportSetup('OFFLINE_ERROR', error instanceof Error ? error.message : 'Offline setup failed. Check your connection and storage, then retry.');
+      throw error;
     }
   })());
 });
@@ -34,6 +55,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('message', event => {
   const source = event.source;
   if (!source || !('id' in source)) return;
+  if (event.data?.type === 'OFFLINE_STATUS') { source.postMessage(setupStatus); return; }
   event.waitUntil((async () => {
     const guards = await caches.open(guardCacheName);
     if (event.data?.type === 'PROCESS_START') await guards.put(guardUrl(source.id), new Response('0'));
