@@ -1,7 +1,14 @@
-import { expect, test, webkit } from '@playwright/test';
-import { samplePhoto } from './sample';
+import { expect, test, webkit, type Route } from '@playwright/test';
+import { enableAutomaticChecks, expectRequestsCached, samplePhoto } from './sample';
 
-test('setup reports failed downloads and retry reuses completed files', async ({ page, context }) => {
+function isToolRequest(requestUrl: string): boolean {
+  const pathname = new URL(requestUrl).pathname;
+  return /\/(?:ocr|models|vision|wasm|summary)\//.test(pathname)
+    || /\/assets\/(?:[^/]+\.wasm|(?:ocr|vision|ner|summary)\.worker-[^/]+\.js)$/.test(pathname);
+}
+
+test('automatic checks report failed downloads and retry reuses completed files', async ({ page, context }) => {
+  test.setTimeout(300_000);
   let failModel = true;
   const fetched: string[] = [];
   await context.route('**/*', async route => {
@@ -12,9 +19,12 @@ test('setup reports failed downloads and retry reuses completed files', async ({
     } else await route.continue();
   });
   await page.goto('/');
-  await expect(page.getByText(/Saving tools: file/)).toBeVisible();
+  const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
+  await expect(choose).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Download automatic checks', exact: true }).click();
+  await expect(page.getByText(/Saving local tools: file/)).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('HTTP 503', { timeout: 120_000 });
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeDisabled();
+  await expect(choose).toBeEnabled();
   const completed = await page.evaluate(async () => {
     const name = (await caches.keys()).find(name => name.startsWith('takip-core-'));
     if (!name) return [];
@@ -24,17 +34,18 @@ test('setup reports failed downloads and retry reuses completed files', async ({
   await page.waitForFunction(async () => !(await navigator.serviceWorker.getRegistration())?.installing);
   fetched.length = 0;
   failModel = false;
-  await page.getByRole('button', { name: 'Retry setup' }).click();
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Download automatic checks', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Automatic checks ready offline', exact: true })).toBeVisible({ timeout: 240_000 });
   expect(fetched.filter(url => completed.includes(url))).toEqual([]);
-  await expect(page.getByText('Ready offline', { exact: true })).toBeVisible();
+  await expect(page.getByText('Editor and checks ready offline', { exact: true })).toBeVisible();
 });
 
 test('fresh offline reload scans and exports with zero processing requests', async ({ page, context }) => {
+  test.setTimeout(300_000);
   await page.goto('/');
   const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
-  await expect(choose).toBeEnabled({ timeout: 120_000 });
-  await expect(page.getByText('Ready offline', { exact: true })).toBeVisible();
+  await enableAutomaticChecks(page);
+  await expect(page.getByText('Editor and checks ready offline', { exact: true })).toBeVisible();
   const sample = await samplePhoto(page);
   await context.setOffline(true);
   await page.reload();
@@ -50,28 +61,62 @@ test('fresh offline reload scans and exports with zero processing requests', asy
   await page.getByRole('button', { name: 'Save safe copy' }).click();
   expect((await download).suggestedFilename()).toBe('takip-safe-copy.png');
   await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
-  expect(requests).toEqual([]);
+  await test.step('verify processing requests were served from the offline cache', async () => {
+    await expectRequestsCached(page, requests);
+  });
 
   // A suspended/restarted service worker must retain the cache-only processing guard.
   const cdp = await context.newCDPSession(page);
   await cdp.send('ServiceWorker.enable');
-  await cdp.send('ServiceWorker.stopAllWorkers');
-  await context.setOffline(false);
-  const blocked = await page.evaluate(async () => {
-    try { await fetch('/__test_uncached_privacy_probe__'); return false; } catch { return true; }
+  await test.step('restore network emulation before stopping service workers', async () => {
+    let timer: ReturnType<typeof setTimeout>;
+    try {
+      await Promise.race([
+        context.setOffline(false),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Restoring network emulation timed out after 15 seconds.')), 15_000); }),
+      ]);
+    } finally {
+      clearTimeout(timer!);
+    }
   });
-  expect(blocked).toBe(true);
+  await test.step('stop service workers', async () => {
+    let timer: ReturnType<typeof setTimeout>;
+    try {
+      await Promise.race([
+        cdp.send('ServiceWorker.stopAllWorkers'),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Stopping service workers timed out after 15 seconds.')), 15_000); }),
+      ]);
+    } finally {
+      clearTimeout(timer!);
+    }
+  });
+  const probe = await test.step('probe uncached request after service-worker restart', async () => {
+    return await page.evaluate(async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10_000);
+      try {
+        await fetch('/__test_uncached_privacy_probe__', { signal: controller.signal });
+        return 'allowed';
+      } catch {
+        return controller.signal.aborted ? 'timed out' : 'blocked';
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+  });
+  expect(probe).toBe('blocked');
   // Chromium can retry a failed intercepted fetch; each blocked attempt is counted.
   await expect(page.getByTestId('network-counter')).toHaveText(/^0 network requests · [1-9]\d* blocked attempts$/);
 });
 
 test('WebKit caches local tools and reloads the app offline', async ({ baseURL }) => {
+  test.setTimeout(300_000);
   const browser = await webkit.launch();
   try {
     const context = await browser.newContext({ baseURL });
     const page = await context.newPage();
     await page.goto('/');
-    await page.waitForFunction(() => !!navigator.serviceWorker.controller, {}, { timeout: 120_000 });
+    await enableAutomaticChecks(page);
     expect(await page.evaluate(async () => {
       const name = (await caches.keys()).find(name => name.startsWith('takip-core-'));
       return name ? !!await (await caches.open(name)).match(new URL('models/ner/onnx/model_quantized.onnx', location.href).href) : false;
@@ -83,15 +128,15 @@ test('WebKit caches local tools and reloads the app offline', async ({ baseURL }
   } finally { await browser.close(); }
 });
 
-test('WebKit reloads offline and exports a locally processed photo', async ({ baseURL }) => {
+test('WebKit reloads offline and exports a manually covered photo', async ({ baseURL }) => {
   const browser = await webkit.launch();
   try {
     const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
     await page.goto('/');
-    test.skip(await page.evaluate(() => typeof OffscreenCanvas === 'undefined'), 'This WebKit build lacks OffscreenCanvas; real Safari/iPhone photo processing remains unverified.');
     const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
     await expect(choose).toBeEnabled({ timeout: 120_000 });
+    await expect(page.getByText('Manual editor ready offline', { exact: true })).toBeVisible();
     const sample = await samplePhoto(page);
     await context.setOffline(true);
     await page.reload();
@@ -100,6 +145,11 @@ test('WebKit reloads offline and exports a locally processed photo', async ({ ba
     context.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
     await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: sample });
     await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByText('Not assessed', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('summary-source')).toHaveText('Manual editing');
+    await page.getByRole('button', { name: 'Add cover', exact: true }).click();
+    await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
+    await expect(page.locator('[data-category="manual"]')).toHaveCount(1);
     await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Save safe copy' }).click();
@@ -107,4 +157,52 @@ test('WebKit reloads offline and exports a locally processed photo', async ({ ba
     expect(requests).toEqual([]);
     await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
   } finally { await browser.close(); }
+});
+
+test('manual editor starts without heavy requests and edits offline', async ({ page, context }) => {
+  const requests: string[] = [];
+  context.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
+  await page.goto('/');
+  const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
+  await expect(choose).toBeEnabled({ timeout: 120_000 });
+  await expect(page.getByText('Manual editor ready offline', { exact: true })).toBeVisible();
+  expect(requests.filter(isToolRequest)).toEqual([]);
+
+  const sample = await samplePhoto(page);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(choose).toBeEnabled({ timeout: 120_000 });
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample-manual.png', mimeType: 'image/png', buffer: sample });
+  await expect(page.getByText('Not assessed', { exact: true })).toBeVisible({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Add cover', exact: true }).click();
+  await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
+  await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save safe copy' }).click();
+  expect((await download).suggestedFilename()).toBe('takip-safe-copy.png');
+  await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
+});
+
+test('cancelled automatic-check download can retry from saved files', async ({ page, context }) => {
+  test.setTimeout(300_000);
+  let heldRoute: Route | undefined;
+  let releaseRoute: (() => void) | undefined;
+  const intercepted = new Promise<void>(resolve => { releaseRoute = resolve; });
+  await context.route('**/*', async route => {
+    if (!heldRoute && isToolRequest(route.request().url())) {
+      heldRoute = route;
+      releaseRoute?.();
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Download automatic checks', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Download automatic checks', exact: true }).click();
+  await intercepted;
+  await page.getByRole('button', { name: 'Cancel download', exact: true }).click();
+  await heldRoute?.abort('aborted').catch(() => {});
+  await expect(page.getByRole('alert')).toContainText('Tool download cancelled', { timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled();
+  await enableAutomaticChecks(page);
 });

@@ -4,9 +4,14 @@ export async function cacheOfflineAsset(
   url: URL,
   onBytes: (bytes: number) => void,
   idleTimeout = 60_000,
+  signal?: AbortSignal,
 ): Promise<void> {
+  if (signal?.aborted) throw cancelledError(signal.reason);
   if (await cache.match(url.href)) return;
+  if (signal?.aborted) throw cancelledError(signal.reason);
   const controller = new AbortController();
+  const cancel = () => controller.abort(signal?.reason);
+  signal?.addEventListener('abort', cancel, { once: true });
   let timer: ReturnType<typeof setTimeout>;
   const resetTimer = () => {
     clearTimeout(timer);
@@ -29,6 +34,7 @@ export async function cacheOfflineAsset(
       status: response.status, statusText: response.statusText, headers: response.headers,
     }));
   } catch (error) {
+    if (signal?.aborted) throw cancelledError(error);
     if (controller.signal.aborted) throw new Error('Download stalled. Check your connection, then retry. Completed files are saved.', { cause: error });
     if (error instanceof Error && error.name === 'QuotaExceededError') {
       throw new Error('Not enough browser storage. Free some device space, then retry setup.', { cause: error });
@@ -36,6 +42,13 @@ export async function cacheOfflineAsset(
     throw error;
   } finally {
     clearTimeout(timer!);
+    signal?.removeEventListener('abort', cancel);
     controller.abort();
   }
+}
+
+function cancelledError(cause: unknown): Error {
+  const error = new Error('Tool download cancelled. Completed files are saved.', { cause });
+  error.name = 'AbortError';
+  return error;
 }

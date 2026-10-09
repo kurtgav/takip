@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pipeline } from '../pipeline/client';
+import { LocalPhoto } from '../render/photo';
 import { riskLevel, templateSummary } from '../pipeline/risk';
 import { categoryLabels, type Box, type Watermark } from '../types';
 import type { ScanOutput } from '../workers/protocol';
@@ -9,9 +9,9 @@ import { PhotoEditor } from './PhotoEditor';
 import { WatermarkEditor } from './WatermarkEditor';
 import { applyCoverPreset, type CoverPreset } from '../pipeline/document';
 
-interface Props { result: ScanOutput; pipeline: Pipeline; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void }
+interface Props { result: ScanOutput; photo: LocalPhoto; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void }
 
-export function Review({ result, pipeline, summary, onReset }: Props) {
+export function Review({ result, photo, summary, onReset }: Props) {
   const [detections, setDetections] = useState(result.detections);
   const [before, setBefore] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -27,7 +27,9 @@ export function Review({ result, pipeline, summary, onReset }: Props) {
   const ready = rendered?.key === key;
   const originalUrl = useBlobUrl(result.original);
   const previewUrl = useBlobUrl(rendered?.blob ?? result.preview);
-  const categories = result.detections.map(box => box.category);
+  const categories = detections.map(box => box.category);
+  const unchangedCategories = JSON.stringify(categories.filter(category => category !== 'manual')) === JSON.stringify(result.detections.map(box => box.category));
+  const complete = result.analysisStatus !== 'manual' && result.analysisStatus !== 'partial';
   const risk = riskLevel(categories);
   const exposed = detections.filter(box => !box.enabled);
   const invalidWatermark = !!watermark && (!watermark.recipient.trim() || !watermark.purpose.trim() || !watermark.date);
@@ -35,11 +37,11 @@ export function Review({ result, pipeline, summary, onReset }: Props) {
   useEffect(() => {
     let current = true;
     setSaved(false); setReviewed(false);
-    void pipeline.request({ action: 'render', detections, watermark }).then(blob => {
+    void photo.render(detections, watermark).then(blob => {
       if (current) { setRendered({ blob, key }); setError(''); }
     }).catch(error => { if (current) setError(error.message); });
     return () => { current = false; };
-  }, [detections, watermark, key, pipeline]);
+  }, [detections, watermark, key, photo]);
 
   function toggle(id: string) {
     setDetections(items => items.map(box => box.id === id ? { ...box, enabled: !box.enabled } : box)); setSelected(id);
@@ -77,16 +79,17 @@ export function Review({ result, pipeline, summary, onReset }: Props) {
       <p className="caption">{before ? 'Original view. Your saved copy always uses the covers selected in After.' : adding ? 'Drag across the detail you want to cover. Check the whole area is inside the box.' : 'Tap any cover to uncover it. Use Add cover for signatures or missed details.'}</p>
       {adding && <button className="secondary" onClick={() => add({ x: 0, y: 0, width: result.width, height: result.height })}>Cover entire photo</button>}
     </div><aside className="review-details">
-      <div className={`risk risk-${risk.toLowerCase()}`}><span>Original exposure</span><strong>{risk} risk</strong></div>
+      <div className={`risk risk-${complete ? risk.toLowerCase() : 'medium'}`}><span>{complete ? 'Original exposure · retained detections' : 'Automatic assessment'}</span><strong>{complete ? `${risk} risk` : result.analysisStatus === 'manual' ? 'Not assessed' : 'Needs review'}</strong></div>
       <p><strong>Looks like:</strong> {result.documentGuess}</p>
-      <p className="summary">{summary?.text ?? templateSummary(categories)}</p><p className="caption" data-testid="summary-source">{summary?.source === 'model' ? 'Local model summary' : 'Standard on-device summary'} · {(result.elapsedMs / 1000).toFixed(1)}s scan</p>
+      <p className="summary">{result.analysisStatus === 'manual' ? 'Add covers manually. No risk rating is available without automatic checks.' : !complete ? 'Some checks were incomplete or the text was unclear. Detected boxes may miss important details; review the whole photo.' : unchangedCategories && summary ? summary.text : templateSummary(categories)}</p><p className="caption" data-testid="summary-source">{result.analysisStatus === 'manual' ? 'Manual editing' : `${unchangedCategories && summary?.source === 'model' ? 'Local model summary' : 'Standard on-device summary'} · ${(result.elapsedMs / 1000).toFixed(1)}s scan`}</p>
       {result.warnings.map(warning => <p className="notice" key={warning}>{warning}</p>)}
       <h2>Minimum share presets</h2><p className="caption">Seller verification leaves names and faces visible, covers other detected details, and keeps manual covers. Review every cover before sharing.</p>
       <div className="actions" aria-label="Minimum share presets"><button className="secondary" onClick={() => applyPreset('seller-verification')}>Seller verification</button><button className="secondary" onClick={() => applyPreset('cover-all')}>Cover all detected</button></div>
-      <h2>Detected details</h2><p className="caption">{result.detections.length} sensitive items found. Select a chip to highlight its box; use its checkbox to change coverage.</p>
+      <h2>Detected details</h2><p className="caption">{detections.filter(box => box.category !== 'manual').length} sensitive items found. Select an item to locate it. Uncheck to uncover; remove incorrect detections to update the assessment.</p>
       <ul className="detection-list" aria-label="Detected items">{detections.map((box, index) => <li key={box.id} data-category={box.category}>
         <button className={selected === box.id ? 'chip selected' : 'chip'} onClick={() => { setSelected(box.id); setBefore(false); }}>{categoryLabels[box.category]} <span>{index + 1}</span></button>
         <label className="cover-toggle"><input type="checkbox" checked={box.enabled} onChange={() => toggle(box.id)} aria-label={`Cover ${categoryLabels[box.category]} ${index + 1}`} />Covered</label>
+        <button className="secondary remove-detection" aria-label={`Remove ${categoryLabels[box.category]} ${index + 1}`} onClick={() => { setDetections(items => items.filter(item => item.id !== box.id)); setSelected(undefined); }}>Remove</button>
       </li>)}</ul>
       {detections.length === 0 && <p>No details detected. This is not a guarantee of safety. Add any covers needed.</p>}
       {exposed.length > 0 && <p className="notice">{exposed.length} detected {exposed.length === 1 ? 'item remains' : 'items remain'} visible. Check that you intend to share {exposed.length === 1 ? 'it' : 'them'}.</p>}

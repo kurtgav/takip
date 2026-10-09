@@ -22,7 +22,7 @@ export class Pipeline {
     if (this.stopped) return Promise.reject(new Error('Local processing stopped. Retry setup to continue.'));
     const id = ++this.sequence;
     return new Promise<WorkerOutputs[T]>((resolve, reject) => {
-      const timer = setTimeout(() => this.dispose('Processing took too long. Try a smaller, clearer photo.'), 120_000);
+      const timer = setTimeout(() => this.dispose('Automatic checks took too long. You can still cover this photo manually.'), 190_000);
       this.pending.set(id, { resolve: value => resolve(value as WorkerOutputs[T]), reject, timer });
       this.worker.postMessage({ ...request, id });
     });

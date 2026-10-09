@@ -36,7 +36,7 @@ export async function createNER() {
           let position = 0;
           for (const word of chunk) {
             const end = position + word.text.length;
-            if (position < cursor && end > index && !/^(name|surname|address|birthday|birth|date|city|province|pangalan|tirahan|sample)[:.]?$/i.test(word.text)) {
+            if (position < cursor && end > index && (word.confidence ?? 100) >= 60 && /[a-z]{3}/i.test(word.text) && !/^(name|surname|address|birthday|birth|date|city|province|pangalan|tirahan|sample)[:.]?$/i.test(word.text)) {
               selected.set(word, token.entity.endsWith('PER') ? 'full_name' : 'address');
             }
             position = end + 1;

@@ -1,12 +1,8 @@
-import type { Detection, ScanResult, Watermark } from '../types';
+import type { ScanResult } from '../types';
 
-export type Request =
-  | { id: number; action: 'init' }
-  | { id: number; action: 'scan'; file: File }
-  | { id: number; action: 'render'; detections: Detection[]; watermark?: Watermark }
-  | { id: number; action: 'clear' };
+export type Request = { id: number; action: 'scan'; file: Blob; width: number; height: number };
 export type ScanOutput = ScanResult & { original: Blob; preview: Blob };
-export interface WorkerOutputs { init: null; scan: ScanOutput; render: Blob; clear: null }
+export interface WorkerOutputs { scan: ScanResult }
 export type Response =
   | { id: number; type: 'progress'; text: string }
   | { id: number; type: 'error'; error: string }

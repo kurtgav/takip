@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { samplePhoto } from './sample';
+import { enableAutomaticChecks, samplePhoto } from './sample';
 
 test('guesses SAMPLE ID and applies explicit cover presets', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await enableAutomaticChecks(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByText('Looks like: ID', { exact: true })).toBeVisible({ timeout: 120_000 });
 

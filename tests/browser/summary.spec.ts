@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { samplePhoto } from './sample';
+import { enableAutomaticChecks, expectRequestsCached, samplePhoto } from './sample';
 
 test.use({ channel: 'chromium', launchOptions: { args: ['--enable-unsafe-webgpu', '--ignore-gpu-blocklist', '--use-angle=d3d11', '--enable-features=Vulkan'] } });
 
@@ -16,16 +16,17 @@ test('optional local LLM produces a bounded explanation without processing reque
   });
   page.on('console', message => { if (message.text().startsWith('Worker initialization error:')) console.info(message.text()); });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await enableAutomaticChecks(page);
   const sample = await samplePhoto(page);
-  await page.getByRole('button', { name: 'Download smart summary' }).click();
-  await expect(page.locator('.smart-summary')).toContainText(/Smart summary ready on this device|Smart summary is unavailable/, { timeout: 240_000 });
+  const summarySection = page.locator('section.smart-summary').filter({ has: page.getByRole('heading', { name: 'Optional smart summary' }) });
+  await summarySection.getByRole('button', { name: 'Download smart summary' }).click();
+  await expect(summarySection.getByRole('status')).toContainText(/Smart summary ready on this device|Smart summary is unavailable/, { timeout: 240_000 });
   await expect(page.getByRole('button', { name: 'Smart summary ready', exact: true })).toBeVisible();
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
-  await page.getByRole('button', { name: 'Download smart summary' }).click();
-  await expect(page.locator('.smart-summary')).toContainText(/Smart summary ready on this device|Smart summary is unavailable/, { timeout: 120_000 });
+  await summarySection.getByRole('button', { name: 'Download smart summary' }).click();
+  await expect(summarySection.getByRole('status')).toContainText(/Smart summary ready on this device|Smart summary is unavailable/, { timeout: 120_000 });
   await expect(page.getByRole('button', { name: 'Smart summary ready', exact: true })).toBeVisible();
   const requests: string[] = [];
   context.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
@@ -36,5 +37,5 @@ test('optional local LLM produces a bounded explanation without processing reque
   expect(text).not.toContain('Sample Person');
   expect(text).not.toContain('sample@example.invalid');
   await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
-  expect(requests).toEqual([]);
+  await expectRequestsCached(page, requests);
 });

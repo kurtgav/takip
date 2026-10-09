@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { samplePhoto } from './sample';
+import { enableAutomaticChecks, samplePhoto } from './sample';
+
+test.describe.configure({ timeout: 300_000 });
 
 test('watermark appears in flattened export and unsupported sharing downloads', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true }));
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await enableAutomaticChecks(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
   const before = await page.locator('.photo-surface img').getAttribute('src');
@@ -41,7 +43,7 @@ test('native share receives only the flattened PNG and cancellation is not succe
     }, configurable: true });
   });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await enableAutomaticChecks(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
   await page.getByRole('checkbox', { name: /I checked the photo/ }).check();

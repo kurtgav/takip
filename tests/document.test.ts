@@ -38,3 +38,18 @@ test('seller preset exposes only name and face while preserving manual covers', 
   assert.ok(seller.every((item, index) => item !== detections[index]));
   assert.ok(applyCoverPreset(seller, 'cover-all').every(item => item.enabled));
 });
+
+test('receipt merchant TIN does not compete with clear receipt clues', () => {
+  assert.equal(guessDocument(words('Official receipt VAT Cash Change'), ['tin']), 'Receipt');
+});
+
+test('clipped receipts retain classification from checkout labels without the receipt title', () => {
+  assert.equal(guessDocument(words('Cashier 7 Service charge Total Balance'), []), 'Receipt');
+  assert.equal(guessDocument(words('Order type Total VAT'), []), 'Receipt');
+  assert.equal(guessDocument(words('Total alone'), []), 'Unknown');
+});
+
+test('MRZ and Filipino passport clues support ID classification', () => {
+  assert.equal(guessDocument(words('P<PHLDELA<CRUZ<<LINA<MAY<<<<<<<<<<<<<<<<<<<<<')), 'ID');
+  assert.equal(guessDocument(words('Pasaporte Nasyonalidad Petsa ng kapanganakan')), 'ID');
+});

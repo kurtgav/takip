@@ -1,83 +1,63 @@
-import { createOCR } from '../pipeline/ocr';
-import { createFaceDetector } from '../pipeline/faces';
-import { prepareCodes, findCodes } from '../pipeline/qr';
-import { createNER } from '../pipeline/ner';
 import { detectPatterns } from '../pipeline/patterns';
 import { mergeDetections } from '../pipeline/merge';
 import { guessDocument } from '../pipeline/document';
-import { paintCovers, paintWatermark } from '../render/covers';
+import { runStage } from './stage';
 import type { Request, Response } from './protocol';
-import type { Detection, Watermark } from '../types';
+import type { Detection, Word } from '../types';
+import type { OCRResult } from '../pipeline/ocr';
 
-let ocr: Awaited<ReturnType<typeof createOCR>> | undefined;
-let faces: Awaited<ReturnType<typeof createFaceDetector>> | undefined;
-let ner: Awaited<ReturnType<typeof createNER>> | undefined;
-let original: OffscreenCanvas | undefined;
 function send(message: Response) { self.postMessage(message); }
-
-async function render(detections: Detection[], watermark?: Watermark): Promise<Blob> {
-  if (!original) throw new Error('Choose a photo first.');
-  const canvas = new OffscreenCanvas(original.width, original.height);
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('Your browser cannot render photos.');
-  context.drawImage(original, 0, 0);
-  paintCovers(context, detections);
-  paintWatermark(context, canvas.width, canvas.height, watermark);
-  return canvas.convertToBlob({ type: 'image/png' });
-}
 
 self.onmessage = async ({ data }: MessageEvent<Request>) => {
   const progress = (text: string) => send({ id: data.id, type: 'progress', text });
+  const start = performance.now();
+  const warnings: string[] = [];
+  let words: Word[] = [];
+  let passes: Word[][] = [];
+  let faces: Detection[] = [];
+  let codes: Detection[] = [];
+  let entities: Detection[] = [];
+  let complete = true;
   try {
-    if (data.action === 'init') {
-      progress('Preparing local text reader…');
-      ocr = await createOCR();
-      progress('Preparing local face and code detectors…');
-      faces = await createFaceDetector();
-      await prepareCodes();
-      progress('Preparing local name detector…');
-      ner = await createNER();
-      send({ id: data.id, type: 'result', result: null });
-    } else if (data.action === 'clear') {
-      original = undefined;
-      send({ id: data.id, type: 'result', result: null });
-    } else if (data.action === 'render') {
-      send({ id: data.id, type: 'result', result: await render(data.detections, data.watermark) });
-    } else {
-      if (!ocr || !faces || !ner) throw new Error('Local models are not ready. Reload and try again.');
-      const start = performance.now();
-      const bitmap = await createImageBitmap(data.file);
-      if (bitmap.width * bitmap.height > 40_000_000) { bitmap.close(); throw new Error('Choose a photo below 40 megapixels.'); }
-      const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
-      original = new OffscreenCanvas(Math.round(bitmap.width * scale), Math.round(bitmap.height * scale));
-      const context = original.getContext('2d', { willReadFrequently: true });
-      if (!context) { bitmap.close(); throw new Error('Photo rendering unavailable in this browser.'); }
-      context.drawImage(bitmap, 0, 0, original.width, original.height);
-      bitmap.close();
-      const image = await original.convertToBlob({ type: 'image/png' });
-      progress('Reading text…');
-      const words = await ocr.read(image);
-      progress('Finding faces…');
-      const faceBoxes = faces(original);
-      progress('Finding QR codes and barcodes…');
-      const codeBoxes = await findCodes(context.getImageData(0, 0, original.width, original.height));
-      progress('Checking sensitive information…');
-      const patterns = detectPatterns(words);
-      const entities = await ner(words);
-      const freshEntities = entities.filter(entity => !patterns.some(box => entity.x < box.x + box.width && entity.x + entity.width > box.x && entity.y < box.y + box.height && entity.y + entity.height > box.y));
-      const detections = mergeDetections([...patterns, ...freshEntities, ...faceBoxes, ...codeBoxes], original.width, original.height);
-      send({ id: data.id, type: 'result', result: {
-        width: original.width, height: original.height, detections,
-        documentGuess: guessDocument(words, detections.map(detection => detection.category)),
-        elapsedMs: performance.now() - start,
-        warnings: words.length ? [] : ['No text found. Check for missed details and add covers manually.'],
-        original: image, preview: await render(detections),
-      } });
+    progress('Reading text…');
+    try {
+      const ocr = await runStage<OCRResult>(new Worker(new URL('./ocr.worker.ts', import.meta.url), { type: 'module' }), data.file);
+      words = ocr.primary; passes = ocr.passes;
     }
-  } catch {
-    original = undefined;
-    send({ id: data.id, type: 'error', error: data.action === 'init'
-      ? 'Local tools could not load. Reconnect, reload, and wait for setup to finish.'
-      : 'This photo could not be processed. Try a clear JPEG or PNG, or a smaller photo.' });
-  }
+    catch { complete = false; warnings.push('Text checks did not finish. Cover names, dates, addresses and identity numbers manually.'); }
+    const preliminary = guessDocument(words, []);
+    const confidence = words.filter(word => word.text.length > 2 && word.confidence !== undefined).map(word => word.confidence!).sort((a, b) => a - b);
+    const unclear = confidence.length > 0 && (confidence[Math.floor(confidence.length / 2)] < 60 || confidence.filter(value => value >= 60).length < 6 || confidence.filter(value => value < 40).length > confidence.length * 0.4);
+    progress('Finding faces and codes…');
+    try {
+      const vision = await runStage<{ faces: Detection[]; codes: Detection[] }>(new Worker(new URL('./vision.worker.ts', import.meta.url), { type: 'module' }), { file: data.file, receipt: preliminary === 'Receipt' });
+      faces = vision.faces; codes = vision.codes;
+    } catch { complete = false; warnings.push('Face and code checks did not finish. Check portraits, QR codes and barcodes manually.'); }
+    const patterns = passes.flatMap((pass, index) => detectPatterns(pass, preliminary).map(box => ({ ...box, id: `pass-${index}-${box.id}` })));
+    const documentGuess = guessDocument(words, patterns.map(box => box.category));
+    // Generic entity models mistake receipt items and brands for people/locations.
+    if (words.length && !unclear && documentGuess !== 'Receipt') {
+      progress('Checking names and addresses…');
+      try { entities = await runStage<Detection[]>(new Worker(new URL('./ner.worker.ts', import.meta.url), { type: 'module' }), words); }
+      catch { complete = false; warnings.push('The name and address model could not run. Label-based checks still ran; review all names and addresses manually.'); }
+    }
+    const freshEntities = entities.filter(entity => !patterns.some(box => entity.x >= box.x && entity.x + entity.width <= box.x + box.width && entity.y >= box.y && entity.y + entity.height <= box.y + box.height));
+    const detections = mergeDetections([...patterns, ...freshEntities, ...faces, ...codes], data.width, data.height);
+    if (!words.length) { complete = false; warnings.push('No readable text was found. Automatic checks may have missed printed details.'); }
+    if (unclear) {
+      complete = false; warnings.push('Some text was difficult to read. Use a closer, well-lit photo and check all covers manually.');
+    }
+    if (documentGuess === 'ID' && (!detections.some(box => box.category === 'full_name') || !detections.some(box => ['drivers_license', 'passport', 'philsys_number', 'tin', 'sss', 'umid', 'philhealth', 'pagibig'].includes(box.category)))) {
+      complete = false; warnings.push('The ID name or identity number was not located reliably. Cover any missing fields manually.');
+    }
+    if (detections.some(box => box.category === 'passport' || box.category === 'mrz') && ['birthday', 'birthplace', 'issue_date', 'expiry_date'].some(category => !detections.some(box => box.category === category))) {
+      complete = false; warnings.push('Some passport fields were not located. Check date of birth, place of birth, issue date and expiry date; add covers wherever details remain visible.');
+    }
+    if (detections.some(box => box.category === 'signature')) warnings.push('Signature areas are estimated. Check the entire signature is covered.');
+    if (detections.some(box => box.category === 'passport_security_area')) warnings.push('The passport security-area cover is estimated. Check that the faint portrait and all repeated personal details are hidden.');
+    send({ id: data.id, type: 'result', result: {
+      width: data.width, height: data.height, detections, documentGuess, warnings,
+      elapsedMs: performance.now() - start, analysisStatus: complete ? 'complete' : 'partial',
+    } });
+  } catch { send({ id: data.id, type: 'error', error: 'Automatic checks stopped. You can still cover this photo manually.' }); }
 };

@@ -1,6 +1,26 @@
 import { readFile } from 'node:fs/promises';
 import { prepareZXingModule, writeBarcode } from 'zxing-wasm/writer';
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+
+export async function enableAutomaticChecks(page: Page): Promise<void> {
+  const download = page.getByRole('button', { name: 'Download automatic checks', exact: true });
+  await expect(download).toBeEnabled({ timeout: 120_000 });
+  await download.click();
+  await expect(page.getByRole('button', { name: 'Automatic checks ready offline', exact: true })).toBeVisible({ timeout: 240_000 });
+}
+
+export async function expectRequestsCached(page: Page, requestUrls: string[]): Promise<void> {
+  const origin = new URL(page.url()).origin;
+  expect(requestUrls.filter(requestUrl => new URL(requestUrl).origin !== origin)).toEqual([]);
+  const uncached = await page.evaluate(async urls => {
+    const name = (await caches.keys()).find(cacheName => cacheName.startsWith('takip-core-'));
+    if (!name) return urls;
+    const cache = await caches.open(name);
+    const cachedUrls = new Set((await cache.keys()).map(request => request.url));
+    return urls.filter(url => !cachedUrls.has(url));
+  }, requestUrls);
+  expect(uncached).toEqual([]);
+}
 
 export async function samplePhoto(page: Page): Promise<Buffer> {
   const face = (await readFile('tests/assets/sample-synthetic-face.png')).toString('base64');

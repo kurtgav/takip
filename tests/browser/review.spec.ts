@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { crc32 } from 'node:zlib';
-import { samplePhoto } from './sample';
+import { enableAutomaticChecks, samplePhoto } from './sample';
 
 const PNG_SIGNATURE_BYTES = 8;
 const PRIVATE_MARKER = 'TAKIP_PRIVATE_MARKER_SAMPLE_ONLY';
@@ -47,10 +47,11 @@ function assertPng(png: Buffer): void {
 }
 
 test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
   await page.goto('/');
+  await enableAutomaticChecks(page);
 
   const input = withSyntheticMetadata(await samplePhoto(page));
   expect(input.includes(Buffer.from(PRIVATE_MARKER))).toBe(true);
@@ -126,5 +127,17 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
   }, { image: output.toString('base64'), x: 720, y: 640 });
   expect(pixel).toEqual([0x14, 0x28, 0x1f, 0xff]);
   await expect(page.getByText('Location data removed. Original stays on your device.')).toBeVisible();
+
+  const automaticDetections = page.locator('.detection-list li:not([data-category="manual"])');
+  while (await automaticDetections.count()) {
+    await automaticDetections.first().getByRole('button', { name: /^Remove / }).click();
+  }
+  await expect(page.locator('.detection-list li')).toHaveCount(1);
+  await expect(page.locator('[data-category="manual"]')).toHaveCount(1);
+  await expect(page.getByText('Low risk', { exact: true })).toBeVisible();
+  await expect(page.locator('.summary')).toHaveText('Nothing sensitive was detected, but this does not guarantee the image is safe. Review the image carefully before sharing.');
+  await expect(page.getByRole('checkbox', { name: /I checked the photo/ })).not.toBeChecked();
+  await expect(save).toBeDisabled();
+  await expect(page.getByText('Location data removed. Original stays on your device.')).toHaveCount(0);
   expect(browserErrors).toEqual([]);
 });

@@ -22,9 +22,9 @@ npm run build
 npm run preview
 ```
 
-Open `http://localhost:4173`. Wait for **Ready offline** and enabled photo buttons before switching to airplane mode. Core first-load assets total approximately 205 MB, including models and runtimes (network compression may reduce transfer size). Keep the tab open during setup; the status shows the current file count and downloaded megabytes. Use HTTPS when serving to a phone; ordinary LAN HTTP cannot install a service worker.
+Open `http://localhost:4173`. Wait for **Manual editor ready offline** and enabled photo buttons. You can now open, manually cover, and export photos in airplane mode. For automatic detection, choose **Download automatic checks** while connected and wait for **Automatic checks ready offline** before disconnecting. Total app and automatic-check assets are approximately 205 MB (network compression may reduce transfer size). Keep the tab open during downloads; status shows file count and downloaded megabytes. Use HTTPS when serving to a phone; ordinary LAN HTTP cannot install a service worker.
 
-Setup times out stalled transfers rather than healthy downloads that exceed two minutes. Failed HTTP responses, storage exhaustion and installation failures show an error with **Retry setup**. Retrying the same build reuses fully cached files; interrupted files are downloaded again. Cache identity comes from the asset manifest, so rebuilding unchanged app assets does not force another download. Only the LSTM OCR engine variants used by this app are precached.
+Setup times out stalled transfers rather than healthy downloads that exceed two minutes. Failed HTTP responses, storage exhaustion and installation failures show actionable errors. **Retry setup** retries the editor; **Download automatic checks** retries models. **Cancel download** stops active transfers before photo input is enabled. Retrying the same build reuses fully cached files; interrupted files are downloaded again. Cache identity comes from the asset manifest, so rebuilding unchanged app assets does not force another download. Only LSTM OCR engine variants used by this app are included.
 
 ## Deploy
 
@@ -37,7 +37,7 @@ Two rules keep that deploy working:
 - Model and runtime assets stay committed under `public/` (468 MB on disk, largest file under the 100 MB GitHub limit). The deploy job cannot run `npm run assets` / `npm run assets:summary`, so those files must be in Git.
 - The site is served from the `/takip/` subpath, so the workflow builds with `VITE_BASE=/takip/` and every runtime asset URL goes through `assetPath()` (`src/asset.ts`, reading `import.meta.env.BASE_URL`). Local `npm run preview` builds and serves at `/`. Root-absolute paths (`/sw.js`, `/ocr/...`, `/models/...`, `/wasm/...`, `href="/"`) 404 on the deployed site — use `assetPath()` instead.
 
-Optional **Download smart summary** loads approximately 290 MB from the same static host; its 4.85 MB WASM runtime is included in core setup. WebLLM caches the model assets; load the model before choosing a photo, including after an offline reload. A compatible WebGPU adapter with `shader-f16` and sufficient GPU memory is required. Unsupported devices, initialization errors and inference timeouts use the clearly labeled standard local summary.
+Optional **Download smart summary** loads approximately 290 MB from the same static host; its 4.85 MB WASM runtime is included in automatic-check setup. WebLLM caches the model assets; load the model before choosing a photo, including after an offline reload. A compatible WebGPU adapter with `shader-f16` and sufficient GPU memory is required. Unsupported devices, initialization errors and inference timeouts use the clearly labeled standard local summary.
 
 ```sh
 npm run lint
@@ -49,27 +49,28 @@ npm run test:browser
 
 Browser tests launch their own production preview, so stop any other server using port 4173 first. Tests generate clearly labeled SAMPLE images; screenshots/downloads go to the OS temporary directory. `eval/private/` is ignored and must never be committed.
 
-The real LLM browser test needs a working WebGPU device and full Playwright Chromium. Its GPU launch flags were verified on this Windows/NVIDIA test machine; software-only CI cannot prove real LLM inference. Core browser tests use headless Chromium and verify the standard-summary path. WebKit also checks installation and offline reopening. Its photo-processing test explicitly skips builds without OffscreenCanvas (including the Windows WebKit test runtime); this does not establish real iPhone/Safari processing compatibility.
+The real LLM browser test needs a working WebGPU device and full Playwright Chromium. Its GPU launch flags were verified on this Windows/NVIDIA test machine; software-only CI cannot prove real LLM inference. Core browser tests use headless Chromium and verify the standard-summary path. WebKit tests cover offline reopening and manual photo editing/export without OffscreenCanvas. Desktop WebKit testing does not establish physical iPhone/Safari automatic-processing compatibility.
 
 ## What runs locally
 
-- Tesseract reads text and word positions in a Web Worker.
+- Tesseract reads text and word positions in a disposable Web Worker. OCR, vision, and named-entity checks run sequentially; each worker terminates before the next starts to reduce peak memory.
 - MediaPipe finds faces, including smaller portraits through overlapping crops.
 - Quantized DistilBERT classifies names and locations; bilingual labels and PH number rules supplement it.
 - ZXing finds QR codes and linear barcodes in a worker.
 - Category-based risk rules, review, solid covers, diagonal recipient/purpose/date watermark and PNG export run locally.
 - Optional Qwen runs in a separate WebGPU worker. It receives only validated category identifiers, selects permitted risk/review wording, and returns at most three sentences with the actual category list. Invalid output falls back to a template. Raw OCR text, photos and watermark fields never reach the LLM.
 - Share sends only the flattened PNG to the browser's native share sheet; unsupported sharing downloads it instead. Cancelling the sheet leaves the review open.
-- A conservative document guess labels ID, receipt, chat or transfer clues; uncertain cases say Unknown. Explicit seller verification leaves names/faces visible while retaining manual covers; Cover all restores coverage. Neither feature reduces the original exposure risk rating.
+- Geometry-aware labels cover full names, multiline addresses, ID numbers, contextual dates, both passport MRZ rows, and estimated signature areas. Recognized Philippine passports also get an estimated cover over the ghost portrait/microprint area, anchored by the passport number and both MRZ rows. Receipt rules distinguish merchant metadata from customer/payment details; generic named-entity inference is skipped for recognized receipts. Estimated regions require manual review.
+- A conservative document guess labels ID, receipt, chat or transfer clues; uncertain cases say Unknown. Seller verification leaves names/faces visible while retaining manual covers; Cover all restores coverage. Coverage changes do not lower the original exposure rating. **Remove** dismisses an incorrect detection and recalculates the assessment. Incomplete checks or poor OCR show **Needs review**; manual mode shows **Not assessed**.
 - Canvas re-encoding discards original metadata. Covers are opaque pixels in the exported image, not removable editor layers.
 
 Photos are decoded in memory, oriented by the browser, and limited to 2400 pixels on the longest edge. Files above 30 MB or images above 40 megapixels are rejected. Some browsers cannot decode HEIC; the error asks for JPEG/PNG. No photo, extracted text, category result, recipient or purpose is saved to browser storage. New photo discards the current image; closing the tab releases its in-memory state.
 
 ## Internet and offline behavior
 
-Internet is needed for installing development packages and downloading assets during setup, and for the browser's first app/model load from its static host. Core model files are shipped locally and precached before photo input is enabled. The service worker serves only static build assets from that cache.
+Internet is needed for installing development packages and the browser's first app/model load from its static host. The small editor shell is cached first; model downloads are optional and explicit. Manual editing/export uses HTML canvas and does not require WebGPU, OffscreenCanvas, or model initialization. Automatic checks start only after selecting a photo. Failed or cancelled checks leave manual editing available. The service worker serves only static build assets from its cache.
 
-During scan and review/export, cache misses are blocked. The live counter distinguishes real application network requests from blocked attempts. It excludes browser-managed service-worker update-script checks and unrelated tabs. Update installers defer asset downloads while a photo is open. A small separate cache stores only anonymous browser-client IDs and blocked-attempt counts so protection survives service-worker suspension. It contains no photo content. Browser caches can be evicted; if initialization fails, reconnect and retry setup. Offline browser tests independently record all HTTP(S) requests during processing.
+During scan and review/export, cache misses are blocked. The live counter distinguishes real application network requests from blocked attempts. It excludes browser-managed service-worker update-script checks and unrelated tabs. Update installers defer asset downloads while a photo is open. A small separate cache stores only anonymous browser-client IDs and blocked-attempt counts so protection survives service-worker suspension. It contains no photo content. Browser caches can be evicted; if initialization fails, reconnect and retry setup. Offline browser tests record HTTP(S) request events, including local cache reads from disposable workers, and verify that processing uses cached assets with no network transfer.
 
 **APIs and cloud services: none at runtime for AI or image processing.** Static hosting delivers code/model bytes only. No analytics, telemetry, remote fonts, cloud inference, accounts or uploads. CSP restricts connections to the same origin.
 
@@ -107,7 +108,7 @@ TAKIP protects photos people are afraid to leak. Uploading an ID or personal scr
 
 `eval/results.md` records only executed results, failures and unmeasured metrics. Physical phone performance, Safari, human accuracy set and venue rehearsals are not yet verified. PRD and acceptance mapping: `PRD.md`, `IMPLEMENTATION_PLAN.md`; current progress: `PROGRESS.md`.
 
-The deployed PWA was verified over live HTTPS on October 9, 2026 at https://kurtgav.github.io/takip/ with 15 of 15 checks passing: page load, UI mounted on the subpath, no horizontal overflow, service worker controlling the page with scope `https://kurtgav.github.io/takip/`, first-load precache complete, offline reload, OCR + NER + face + QR/barcode pipelines running offline, safe-copy PNG export, and zero network requests during offline processing (the same suite passes 11/11 locally against `npm run preview`).
+An earlier deployed build was verified over live HTTPS on October 9, 2026 at https://kurtgav.github.io/takip/ with 15 of 15 checks passing: page load, UI mounted on the subpath, no horizontal overflow, service worker controlling the page with scope `https://kurtgav.github.io/takip/`, first-load precache complete, offline reload, OCR + NER + face + QR/barcode pipelines running offline, safe-copy PNG export, and zero network requests during offline processing. That historical result does not verify the newer optional-download flow or physical iPhone compatibility.
 
 F1–F16 are implemented. F17 PaddleOCR is deferred: a viable official SDK was researched, but no paired accuracy corpus or target phone is available to establish improvement over the verified Tesseract path.
 

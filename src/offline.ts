@@ -2,6 +2,12 @@ import { assetPath } from './asset';
 
 export interface NetworkCount { requests: number; blocked: number }
 
+interface WorkerReply extends Partial<NetworkCount> {
+  ready?: boolean;
+  done?: boolean;
+  error?: string;
+}
+
 export async function prepareOffline(onProgress: (text: string) => void): Promise<void> {
   if (import.meta.env.DEV) return;
   if (!('serviceWorker' in navigator) || !('caches' in window)) throw new Error('Offline storage is unavailable. Use current Chrome over HTTPS or localhost.');
@@ -13,7 +19,7 @@ export async function prepareOffline(onProgress: (text: string) => void): Promis
     const fail = (text: string) => { cleanup(); reject(new Error(text)); };
     const resetTimer = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => fail('No download progress for 90 seconds. Check your connection and free storage, then retry. Completed files are saved.'), 90_000);
+      timer = setTimeout(() => fail('No offline app progress for 90 seconds. Check your connection and free storage, then retry.'), 90_000);
     };
     const check = () => {
       if (navigator.serviceWorker.controller && registration?.active) { cleanup(); resolve(); }
@@ -53,14 +59,90 @@ export async function prepareOffline(onProgress: (text: string) => void): Promis
   });
 }
 
-export async function processingNetwork(type: 'PROCESS_START' | 'PROCESS_END'): Promise<NetworkCount> {
-  if (import.meta.env.DEV) return { requests: 0, blocked: 0 };
+function activeWorker(): ServiceWorker {
   const controller = navigator.serviceWorker.controller;
-  if (!controller) throw new Error('Offline protection is not ready. Reload before selecting a photo.');
+  if (!controller) throw new Error('Offline protection is not ready. Reload, then retry.');
+  return controller;
+}
+
+function workerRequest(type: string, timeout: number, timeoutText: string): Promise<WorkerReply> {
+  const controller = activeWorker();
   return new Promise((resolve, reject) => {
     const channel = new MessageChannel();
-    const timer = setTimeout(() => { channel.port1.close(); reject(new Error('Offline protection did not respond. Reload to continue.')); }, 5000);
-    channel.port1.onmessage = ({ data }: MessageEvent<NetworkCount>) => { clearTimeout(timer); channel.port1.close(); resolve(data); };
+    const timer = setTimeout(() => {
+      channel.port1.close();
+      reject(new Error(timeoutText));
+    }, timeout);
+    channel.port1.onmessage = ({ data }: MessageEvent<WorkerReply>) => {
+      clearTimeout(timer);
+      channel.port1.close();
+      if (typeof data?.error === 'string') reject(new Error(data.error));
+      else resolve(data);
+    };
     controller.postMessage({ type }, [channel.port2]);
   });
+}
+
+export async function toolsReady(): Promise<boolean> {
+  if (import.meta.env.DEV) return true;
+  if (!navigator.serviceWorker.controller) return false;
+  const reply = await workerRequest('TOOLS_STATUS', 5000, 'Offline tools status did not respond. Reload, then retry.');
+  return reply.ready === true;
+}
+
+export async function downloadTools(onProgress: (text: string) => void): Promise<void> {
+  if (import.meta.env.DEV) return;
+  const controller = activeWorker();
+  await new Promise<void>((resolve, reject) => {
+    const channel = new MessageChannel();
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const cleanup = () => {
+      settled = true;
+      clearTimeout(timer);
+      channel.port1.close();
+      navigator.serviceWorker.removeEventListener('message', message);
+    };
+    const fail = (text: string) => {
+      if (settled) return;
+      cleanup();
+      reject(new Error(text));
+    };
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        controller.postMessage({ type: 'TOOLS_CANCEL' });
+        fail('No tool download progress for 90 seconds. Check your connection and free storage, then retry. Completed files are saved.');
+      }, 90_000);
+    };
+    const message = (event: MessageEvent<{ type?: string; text?: string }>) => {
+      if (!(event.source instanceof ServiceWorker) || event.source.scriptURL !== controller.scriptURL) return;
+      if (event.data?.type === 'TOOLS_PROGRESS' && typeof event.data.text === 'string') {
+        resetTimer();
+        onProgress(event.data.text);
+      }
+    };
+    channel.port1.onmessage = ({ data }: MessageEvent<WorkerReply>) => {
+      if (typeof data?.error === 'string') {
+        fail(data.error);
+        return;
+      }
+      cleanup();
+      resolve();
+    };
+    resetTimer();
+    navigator.serviceWorker.addEventListener('message', message);
+    controller.postMessage({ type: 'TOOLS_DOWNLOAD' }, [channel.port2]);
+  });
+}
+
+export async function cancelTools(): Promise<void> {
+  if (import.meta.env.DEV || !navigator.serviceWorker.controller) return;
+  await workerRequest('TOOLS_CANCEL', 5000, 'Tool download did not stop. Reload before opening a photo.');
+}
+
+export async function processingNetwork(type: 'PROCESS_START' | 'PROCESS_END'): Promise<NetworkCount> {
+  if (import.meta.env.DEV) return { requests: 0, blocked: 0 };
+  const reply = await workerRequest(type, 5000, 'Offline protection did not respond. Reload to continue.');
+  return { requests: reply.requests ?? 0, blocked: reply.blocked ?? 0 };
 }

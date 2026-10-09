@@ -7,7 +7,7 @@ test('defers a service worker update without fetching assets while a photo is op
   await page.goto('/');
   const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
   await expect(choose).toBeEnabled({ timeout: 120_000 });
-  await expect(page.getByText('Ready offline', { exact: true })).toBeVisible();
+  await expect(page.getByText('Manual editor ready offline', { exact: true })).toBeVisible();
 
   const sample = await samplePhoto(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({

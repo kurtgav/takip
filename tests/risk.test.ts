@@ -6,7 +6,7 @@ import type { Category } from '../src/types.ts';
 test('rates direct identifiers, financial details, and QR codes High', () => {
   const high: Category[] = [
     'philsys_number', 'tin', 'sss', 'umid', 'philhealth', 'pagibig',
-    'drivers_license', 'passport', 'card_number', 'account_number', 'qr_code',
+    'drivers_license', 'passport', 'mrz', 'passport_security_area', 'card_number', 'account_number', 'qr_code',
   ];
   for (const category of high) assert.equal(riskLevel([category]), 'High', category);
 });
@@ -14,6 +14,7 @@ test('rates direct identifiers, financial details, and QR codes High', () => {
 test('rates dangerous identity combinations High', () => {
   assert.equal(riskLevel(['full_name', 'birthday']), 'High');
   assert.equal(riskLevel(['full_name', 'address']), 'High');
+  assert.equal(riskLevel(['full_name', 'signature']), 'High');
 });
 
 test('rates specified and conservative combinations Medium', () => {
@@ -21,6 +22,7 @@ test('rates specified and conservative combinations Medium', () => {
   assert.equal(riskLevel(['full_name', 'phone']), 'Medium');
   assert.equal(riskLevel(['face', 'full_name']), 'Medium');
   assert.equal(riskLevel(['digits']), 'Medium');
+  assert.equal(riskLevel(['signature']), 'Medium');
   assert.equal(riskLevel(['email', 'phone']), 'Medium');
 });
 

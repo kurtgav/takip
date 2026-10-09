@@ -2,13 +2,13 @@ import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
 import { assetPath } from '../asset';
 import type { Detection } from '../types';
 
-export async function createFaceDetector() {
+export async function createFaceDetector(minDetectionConfidence = 0.65) {
   const files = await FilesetResolver.forVisionTasks(assetPath('vision'), true);
   const detector = await FaceDetector.createFromOptions(files, {
     // This runs in a worker; Safari-style user agents can trigger a DOM canvas fallback.
     canvas: new OffscreenCanvas(1, 1),
     baseOptions: { modelAssetPath: assetPath('models/face.tflite'), delegate: 'CPU' },
-    runningMode: 'IMAGE', minDetectionConfidence: 0.45,
+    runningMode: 'IMAGE', minDetectionConfidence,
   });
   return (image: OffscreenCanvas): Detection[] => {
     const detections: Detection[] = [];
