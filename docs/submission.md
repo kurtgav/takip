@@ -1,128 +1,126 @@
-# TAKIP — Submission text (ready to paste)
+# TAKIP — Devpost submission (ready to paste)
 
-> Owner: Hermes (docs) · Session 1 → **Session 3 (2026-10-09 18:5x Asia/Manila)**.
-> Every field required by PRD §15. Paste into the Cerebral Valley event form.
-> **Submit once — no edits or resubmission allowed.** Fill the `[BLANK]` fields first.
-> This file is now **reconciled with `README.md` and `eval/results.md`** (which it previously
-> lagged) — every runtime/model claim below is one the built app actually makes.
+> Owner: Hermes (docs) · Session 1 created, updated Session 4 (2026-10-09 20:59 Asia/Manila).
+> **Internal draft** — this is NOT the submitted form. Every field below maps to the PRD §15.1
+> checklist. Fill the `[BLANK — …]` fields, run the pre-submit checklist, then paste into Devpost.
+> Team members and URLs are deliberately left as **clearly marked blanks** for the human.
 
-## Build status (honest — read before pasting)
+## Build status (verified Session 4, 2026-10-09 20:59 — read this first)
 
-As of **2026-10-09 18:5x** the app is **built**: **PRD F1–F16 are implemented and verified** in
-the automated suite; **F17 (PaddleOCR) is deferred**. `eval/results.md` records the latest run:
-`npm run lint`, `npm run typecheck`, `npm test` (**30/30**), `npm run build` (53 precache entries),
-`npm run test:browser` (**11/11, 2.7 min**) all **PASSED** — including the full
-photo → scan → covers → risk summary → watermark → **flattened, metadata-free export** flow, a
-fresh **offline reload**, and a processing network log at **0 requests / 0 blocked attempts**.
+The app is **built**: PRD **F1–F16 are implemented and verified** in the automated browser suite;
+**F17 (PaddleOCR)** is deferred. `eval/results.md` records the executed results: `npm run lint`,
+`npm run typecheck`, `npm test` (**30/30 unit**), `npm run build`, and `npm run test:browser`
+(**11/11 browser tests, 2.7 min**) all **PASSED** — including the full
+photo → scan → covers → risk summary → watermark → flattened metadata-free export flow, a fresh
+offline reload, and a network log with zero processing requests.
 
-**Still NOT done / not measured:** the human 30-photo **accuracy set** (recall, false covers),
-**mid-range-phone scan time**, **Safari/iOS**, **physical camera**, **native OS share sheet**, and
-the **three venue rehearsals**. Do **not** claim those in the form; say "not yet measured" if asked.
+The app is also **deployed**: per `README.md` (§Deploy/§Verification) and `eval/results.md`
+(§Live deployment), the static PWA is published to **GitHub Pages over HTTPS** (subpath build
+`VITE_BASE=/takip/`; `.github/workflows/pages.yml` republishes `dist/` on every push to `master`),
+and the same offline suite re-passed **15/15 checks** against the live origin. **The URL itself is
+left blank below for the human** — the verified value is recorded for you in `docs/HERMES_NOTES.md`.
 
----
-
-## 1. Project name
-**TAKIP** — *"Cover before you share."* (Filipino for *"cover"*.)
-
-## 2. Short description (paste as-is — matches README line 3)
-> TAKIP finds and covers sensitive details in photos using on-device AI. Review the automatic
-> covers, add any missed covers and a purpose watermark, then export a flattened PNG with the
-> original metadata removed. Works offline after setup; detection can miss details, so always
-> review before sharing.
-
-## 3. Team members
-`[BLANK — human: names, roles, and any handles the form requires]`
-
-## 4. Public GitHub repository
-`[BLANK — human: https://github.com/<owner>/takip — must be PUBLIC before 10:00 AM Oct 10]`
-
-## 5. Demo video (~1 minute)
-`[BLANK — human: paste the video URL after recording per docs/demo-script.md]`
-
-## 6. X / LinkedIn video post URL
-`[BLANK — human: paste the post URL; tag Devin / Cognition and include #AppBuildersPH — see docs/social-post.md]`
-
-## 7. What runs locally (paste as-is — matches README §"What runs locally")
-> Everything the app does runs on the user's device, in the browser:
-> - **Tesseract** reads text and word positions (Web Worker).
-> - **MediaPipe** finds faces, including smaller ID portraits via overlapping crops.
-> - **Quantized DistilBERT** classifies names and locations; bilingual labels and PH number
->   rules supplement it.
-> - **ZXing** finds QR codes and linear barcodes.
-> - Category-based **risk rules, review, solid covers, a diagonal recipient/purpose/date
->   watermark and a flattened PNG export** all run locally.
-> - An **optional local language model** (Qwen, WebGPU) writes the risk summary from category
->   identifiers only — with a standard template fallback on unsupported devices.
-> - **Share** sends only the flattened PNG to the browser's native share sheet (download if
->   unsupported). Canvas re-encoding discards original metadata (EXIF/GPS). Covers are opaque
->   pixels in the exported image, not removable layers.
-> No photo, extracted text, category result, recipient or purpose is written to storage.
-
-## 8. What requires internet (paste as-is — README §"Internet and offline behavior")
-> Setup and the **first app/model load** from the static host. Core model files are shipped
-> locally and precached **before photo input is enabled**, so after that the full flow works in
-> **airplane mode**. During scan and export, cache misses are blocked and shown by the live
-> counter. **Nothing is uploaded at any time.**
-
-## 9. Models used (paste as-is — README §"Models, sources and licenses")
-> - **OCR** — Tesseract.js 7.0.0 + tesseract.js-core 7.0.0, English LSTM data (4.0.0). Apache-2.0.
-> - **Face** — MediaPipe tasks-vision 1.1.0; BlazeFace short-range float16 (v1). Apache-2.0.
-> - **NER** — Transformers.js 3.8.1 + `onnx-community/distilbert-NER-ONNX` (q8; base
->   `dslim/distilbert-NER`). Apache-2.0 base.
-> - **QR / barcode** — zxing-wasm 3.1.5 (MIT wrapper; ZXing-C++ Apache-2.0).
-> - **Optional summary LLM** — WebLLM 0.2.85 + `mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC`
->   (derived from Qwen2.5-0.5B-Instruct; Apache-2.0 base; WebGPU only, with template fallback).
-
-## 10. Technologies and frameworks (paste as-is — README §"Technologies")
-> React 19.3.0, Vite 8.3.4, TypeScript 6.0.3, Tailwind CSS 4.3.3 (bundled), vite-plugin-pwa
-> 2.0.0, Cache API / service worker, WebAssembly, OffscreenCanvas, browser file/camera input.
-> Node built-in test runner (tsx) and Playwright for real browser tests. **No backend.**
-
-## 11. APIs and cloud services
-> **None at runtime** for AI or image processing (README §"Internet…"). No cloud AI API, no
-> analytics, no telemetry, no runtime CDNs or remote fonts. Static hosting delivers code and
-> model bytes only, for the first load. CSP restricts connections to the same origin.
-
-## 12. Existing code and assets (paste as-is — README §"Technologies and existing assets")
-> **None reused** — TAKIP is a new project created in this repository during the build.
-> Third-party libraries, model weights and WASM binaries are existing open-source assets,
-> disclosed in field 9. System fonts only. The TAKIP SVG icon is project-created. One generated
-> fixture is committed for tests: `tests/assets/sample-synthetic-face.png` — a **fictional**
-> portrait made with OpenAI's built-in image tool, carrying prominent SAMPLE labeling and not a
-> real person or government-ID design. Test QR/barcodes are generated by the installed ZXing
-> writer.
-
-## 13. AI development tools (disclose — paste as-is — README §"AI development tools")
-> This product was **built** with AI development tools; none performs runtime inference for users:
-> - **OpenAI Codex** — implementation, research and automated verification.
-> - **Hermes agent on DeepSeek V4.1 Flash** — content, testing and documentation
->   (`docs/HERMES_NOTES.md`).
-> - **The repository's orchestrator script** — coordinates sessions and owns commits/pushes.
-> - OpenAI's built-in image generation created only the synthetic test portrait (field 12).
-
-## 14. Why does this product benefit from running AI locally? (PRD §15.6 — paste as-is)
-> TAKIP protects the images people are most afraid to leak: their IDs and personal screenshots.
-> A cloud tool would require uploading the very image it is meant to protect. By running OCR,
-> face detection, entity recognition, and a small language model on the user's own device, TAKIP
-> keeps the original private, works with no internet, responds instantly, and costs nothing per
-> use.
+**What remains before submission (NOT YET RUN — do not claim it):** the human fields below, the
+demo video (PRD §16.2), the §12 measurements on a real phone (recall / false covers / scan time),
+and the 3 venue rehearsals. The earlier "obsolete submission draft" the README flagged is this
+file: it is now reconciled to the built + deployed state.
 
 ---
 
-## Final pre-submit checklist (PRD §15.1)
-- [ ] Project name: **TAKIP**
-- [ ] Short description (field 2)
-- [ ] Team members — `[BLANK]` filled
-- [ ] Public GitHub repo — links and is PUBLIC before 10:00 AM Oct 10
-- [ ] Demo video — links (recorded per `docs/demo-script.md`, SAMPLE content only)
-- [ ] X / LinkedIn post — links, tags Devin/Cognition, includes **#AppBuildersPH**
-- [ ] What runs locally (field 7) — matches the built app
-- [ ] What requires internet (field 8)
-- [ ] Models used (field 9) — matches README (only shipped models listed)
-- [ ] Technologies (field 10) — matches the built app
-- [ ] APIs / cloud services (field 11)
-- [ ] Existing code and assets (field 12) — synthetic fixture disclosed
-- [ ] AI development tools (field 13)
-- [ ] "Why local" answer (field 14)
-- [ ] No recall / scan-time / phone / Safari / rehearsal claim made unless measured
-- [ ] Submitted **once** — no edits
+## PRD §15.1 — checklist, field by field
+
+- [ ] **Project name:** **TAKIP**
+- [ ] **Short description:** (see §15.2 below)
+- [ ] **Team members:** `[BLANK — team member names and roles]`
+- [ ] **Public GitHub repository:** `[BLANK — paste the public repo URL; must be PUBLIC before 10:00 AM Oct 10]`
+- [ ] **Demo video (~1 minute):** `[BLANK — paste the video URL; shot list in `docs/demo-script.md`; SAMPLE content only]`
+- [ ] **X / LinkedIn video post URL:** `[BLANK — paste the post URL; tag Devin / Cognition and include #AppBuildersPH]`
+- [ ] **What runs locally:** (see §15.3 below)
+- [ ] **What requires internet:** (see §15.4 below)
+- [ ] **Models used:** (see §15.5 below)
+- [ ] **Technologies and frameworks:** (see §15.6 below)
+- [ ] **APIs and cloud services:** (see §15.7 below)
+- [ ] **Existing code and assets:** (see §15.8 below)
+- [ ] **AI development tools:** (see §15.9 below)
+- [ ] **Why does this product benefit from running AI locally?:** (see §15.10 below)
+- [ ] **Submitted once** (no edits or resubmission allowed)
+
+---
+
+## §15.2 Short description
+
+> TAKIP is an on-device privacy filter that automatically finds and covers ID numbers, faces,
+> birthdays, addresses, and account numbers in photos before you share them. All AI runs locally on
+> your phone, works in airplane mode, and your original photo never leaves your device.
+
+## §15.3 What runs locally
+
+OCR (Tesseract.js), face detection (MediaPipe), named-entity recognition (Transformers.js),
+risk-summary LLM (WebLLM), QR / barcode detection, pattern rules, covering, watermarking, and
+export. **All processing** — nothing is sent anywhere while the app works.
+
+## §15.4 What requires internet
+
+Only the **first load** of the app and the one-time model download. Nothing is uploaded at any time.
+
+## §15.5 Models used
+
+| Job | Model / library | Notes |
+|---|---|---|
+| Text / OCR | **Tesseract.js 7.0.0** (LSTM, `eng` data) | Apache-2.0 |
+| Faces | **`@mediapipe/tasks-vision` 1.1.0** — BlazeFace short-range, float16 | Apache-2.0 |
+| Names / addresses / places | **Transformers.js 3.8.1** running **`onnx-community/distilbert-NER-ONNX`** (int8/q8) | base `dslim/distilbert-NER`, Apache-2.0 |
+| Risk summary (optional) | **WebLLM 0.2.85** + **`Qwen2.5-0.5B-Instruct-q4f16_1-MLC`** | WebGPU only; template fallback |
+| QR / barcode (not AI) | **ZXing-WASM 3.1.5** (local worker) | MIT; `BarcodeDetector` API where available |
+
+## §15.6 Technologies and frameworks
+
+TypeScript, **Vite 6**, **`vite-plugin-pwa` (Workbox)** for the offline service worker, a **React**
+UI shell, the **Canvas API** for covers / flattening / metadata stripping, and the Web Performance /
+Web Share APIs. Deployed as a static PWA.
+
+## §15.7 APIs and cloud services
+
+**None at runtime.** No cloud AI API is used — that is the design. The build and hosting use
+**GitHub Pages + GitHub Actions** (static hosting only; the deploy workflow carries no secrets). The
+browser-native `BarcodeDetector` API is used where available, with the WASM reader as fallback.
+
+## §15.8 Existing code and assets
+
+- **No pre-existing project was reused.** The repo was created at build start.
+- **Assets:** two application icons and a **labeled synthetic portrait**
+  (`tests/assets/sample-synthetic-face.png`, SHA-256
+  `831872d94e751b322d705e31d9395467611b75226b02abdb334027148a0e0c0f`) generated with OpenAI's image
+  tool — a fictional face, no real person and no government ID design.
+- **Model weights** (open-source, downloaded once at runtime): Tesseract `eng` data, MediaPipe
+  BlazeFace, DistilBERT-NER (int8), optional Qwen2.5-0.5B-Instruct, ZXing-WASM. Licenses above.
+- **Test data** is team-made / synthetic (labeled **SAMPLE** cards). No real IDs are committed;
+  `eval/private/` is git-ignored.
+
+## §15.9 AI development tools (disclosed)
+
+**OpenAI Codex** (coding agent), the **Hermes agent running DeepSeek V4.1 Flash** (content, testing,
+documentation), and the **orchestrator script** that drives the agents and makes commits. These were
+used to **build** the product; **none of them is part of the product at runtime**.
+
+## §15.10 Why does this product benefit from running AI locally?
+
+> TAKIP protects the images people are most afraid to leak: their IDs and personal screenshots. A
+> cloud tool would require uploading the very image it is meant to protect. By running OCR, face
+> detection, entity recognition, and a small language model on the user's own device, TAKIP keeps
+> the original private, works with no internet, responds instantly, and costs nothing per use.
+
+---
+
+## Pre-submit checklist (PRD §14.2 / §15)
+
+- [ ] **Team members** filled (was `[BLANK]`).
+- [ ] **Public GitHub repo** URL pasted; repo is **PUBLIC** and up to date before 10:00 AM Oct 10.
+- [ ] **Demo video** (≤ 1 min) recorded and URL pasted — **no real IDs**, SAMPLE card only (§16.3).
+- [ ] **X / LinkedIn post URL** pasted, **tagging Devin / Cognition** and including **#AppBuildersPH**.
+- [ ] **Live PWA demo URL** added if the form offers a demo/URL field.
+- [ ] Every `[BLANK — …]` field replaced; nothing left in brackets.
+- [ ] Numbers quoted match `eval/results.md` **exactly** — no invented benchmarks.
+- [ ] Phone recall, scan time and rehearsals stated only as "not yet measured".
+- [ ] AI-assistance disclosure kept (Codex + Hermes/DeepSeek + orchestrator); runtime models all open-source.
+- [ ] Submitted before **10:00 AM, October 10** — **once** only (PRD §15).

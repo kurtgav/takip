@@ -1,6 +1,6 @@
 # TAKIP — Manual test plan (30 cases)
 
-> Owner: Hermes (docs) · Session 1 created, updated Session 3 (2026-10-09 18:5x Asia/Manila).
+> Owner: Hermes (docs) · Session 1 created, updated Session 4 (2026-10-09 20:59 Asia/Manila).
 > Goal: measure the PRD §12 metrics honestly — **sensitive-item recall**, **false covers**,
 > **scan time** and **demo success** — across ~30 team-made photos covering every category in
 > PRD §7, under varied conditions (angle, glare, low light). "Measured honestly" is the whole
@@ -11,7 +11,7 @@
 > in `eval/private/` (git-ignored, never committed) and are used only to run the numbers — never
 > in the public demo, screenshots or video (PRD §16.3).
 
-## Build status (read first — 2026-10-09 18:5x)
+## Build status (read first — 2026-10-09 20:59)
 
 The app is **built**: PRD **F1–F16 are implemented and verified** in the automated browser suite;
 **F17 (PaddleOCR)** is deferred. `eval/results.md` records the executed automated results:
@@ -19,6 +19,15 @@ The app is **built**: PRD **F1–F16 are implemented and verified** in the autom
 `npm run test:browser` (**11/11 browser tests, 2.7 min**) all PASSED, including the full
 photo → scan → covers → risk summary → watermark → flattened metadata-free export flow, a fresh
 offline reload, and a zero-processing-request network log.
+
+The app is also **deployed**: the static PWA is live over HTTPS at **https://kurtgav.github.io/takip/**
+(GitHub Pages project site, subpath build `VITE_BASE=/takip/`; `.github/workflows/pages.yml`
+republishes `dist/` on every push to `master`). An independent Playwright session against the live
+origin re-ran the offline suite with **15/15 checks PASSED** on 2026-10-09 — page load, UI mounted
+on the subpath, service worker scope `https://kurtgav.github.io/takip/`, offline reload,
+OCR + NER + face + QR/barcode pipelines running offline, safe-copy export, and zero processing
+requests (`README.md` §Deploy/§Verification; `eval/results.md` §Live deployment). This gives the
+team a ready **HTTPS origin**, so the phone pass below no longer needs a self-hosted HTTPS server.
 
 **Therefore every case below is now RUNNABLE — no case is blocked on a missing feature.** What is
 **NOT yet run** (and is exactly why this plan exists) is the human pass over real photos on a real
@@ -44,8 +53,10 @@ paths, not general accuracy.
 
 ## How to run (per case)
 
-1. Serve the **production** build over **HTTPS** (`npm run build && npm run preview`, behind HTTPS
-   for a phone), open on the target device, wait for **Ready offline** and enabled photo buttons.
+1. Serve the **production** build over **HTTPS** — either the **deployed site**
+   **https://kurtgav.github.io/takip/** (already HTTPS) or `npm run build && npm run preview`
+   behind HTTPS for a phone — open on the target device, wait for **Ready offline** and the enabled
+   photo buttons. (Ordinary LAN HTTP cannot install a service worker; use the HTTPS origin.)
 2. (Optional) download the smart-summary model while online if testing the local-LLM summary.
 3. Turn on **airplane mode** (Wi-Fi off too), reload, wait for **Ready offline** again.
 4. Run the case: Choose/Take Photo → scan → review → (as the case says) watermark → check the
@@ -137,5 +148,8 @@ and name the miss — that is the rule the judges score on.
 - `eval/private/` holds any real test photos: **git-ignored, never committed, never shown**.
 - Automated browser tests pass on synthetic fixtures; they are **not** a phone scan benchmark and
   do not establish recall. This plan is the only source of the §12 metrics.
+- The **deployed** copy (https://kurtgav.github.io/takip/) is verified only by the automated HTTPS
+  suite (15/15), **not** by a phone rehearsal. A live deploy is not a substitute for measuring the
+  §12 metrics on the target device.
 - Physical camera capture, native OS share sheet, Safari/iOS and phone scan timing remain
   **NOT RUN** until executed on a real device (see `eval/results.md` → "Not yet measured").

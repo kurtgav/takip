@@ -1,8 +1,8 @@
 # TAKIP — Judge Q&A (the 12 hardest questions)
 
-> Owner: Hermes · Updated Session 3 (2026-10-09 18:5x) — answers reflect the **built** app
-> (F1–F16). Answer **short and honest**; when a number isn't measured yet, say "not yet measured" —
-> never estimate.
+> Owner: Hermes · Updated Session 4 (2026-10-09 20:59) — answers reflect the **built and deployed**
+> app (F1–F16; live at https://kurtgav.github.io/takip/). Answer **short and honest**; when a number
+> isn't measured yet, say "not yet measured" — never estimate.
 > Tags map each answer to the PRD §14.1 judging criteria: **Problem & Usefulness (25%)**,
 > **Local AI Implementation (25%)**, **Technical Execution (20%)**, **Innovation (15%)**,
 > **Product & Demo Quality (15%)**.
@@ -47,15 +47,18 @@ once; the app works after that in airplane mode.
 *(Show the badge + live counter.)* The app counts **every network request made while processing**
 and shows it — during a full photo → scan → export it stays at **zero requests, zero blocked
 attempts**. In our automated suite a fresh **offline reload**, a full scan and an export all pass
-with that counter at zero. To be precise about what's verified: the offline flow is verified in our
-test suite; the on-stage **airplane-mode toggle** is shown once the venue phone passes rehearsal.
+with that counter at zero, and the **deployed copy** at https://kurtgav.github.io/takip/ re-passed
+the same offline suite **15 of 15** over live HTTPS (`eval/results.md` §Live deployment). To be
+precise about what's verified: the offline flow is verified in our test suite; the on-stage
+**airplane-mode toggle** is shown once the venue phone passes rehearsal.
 
 **Q7. "Does it work on the phones real users have?"**
 *(Technical Execution · Product & Demo Quality)*
-It's a PWA — first load online, then offline. Core redaction is Chrome/Edge/Safari. The *optional*
-on-device LLM summary needs WebGPU and simply falls back to a template elsewhere. It's a vanilla
-phone web app; no install from a store. **Scan time on a mid-range phone is the next number we
-measure** — pending, not claimed.
+It's a PWA — first load online, then offline — and it's **live now** at
+**https://kurtgav.github.io/takip/**, installable from that HTTPS URL. Core redaction is
+Chrome/Edge/Safari. The *optional* on-device LLM summary needs WebGPU and simply falls back to a
+template elsewhere. It's a vanilla phone web app; no install from a store. **Scan time on a
+mid-range phone is the next number we measure** — pending, not claimed.
 
 **Q8. "What's actually new here?"**
 *(Innovation)*
@@ -81,6 +84,7 @@ digits. Formats are heuristics — we verify them on our own test set and report
 Live, on the phone — that's the rule (PRD §14.2). We photograph the **SAMPLE** card in the room.
 Airplane mode is toggled live **only after** it passes the venue rehearsal; until then we show the
 on-device badge and counter. We keep a backup image only for camera/lighting failure, and we say so.
+(If a judge wants to try it themselves, the app is public: https://kurtgav.github.io/takip/.)
 
 **Q12. "Did AI write this? Which tools?"**
 *(Rules compliance — PRD §14.2)*

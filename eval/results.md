@@ -48,7 +48,7 @@ Failures were reproduced and fixed: MediaPipe module loader, Transformers.js 4.x
 - Three live mall rehearsals: NOT YET RUN.
 - Camera capture on physical device and native OS share sheet: NOT YET RUN.
 - PaddleOCR upgrade (F17): NOT IMPLEMENTED; official SDK researched, but no paired accuracy/device evidence to establish improvement.
-- Native OS sharing and physical camera are not proven by the browser API/control tests. No production deployment or live-host verification was requested or performed.
+- Native OS sharing and physical camera are not proven by the browser API/control tests.
 
 ## Manual physical-device checks
 
@@ -57,3 +57,13 @@ Failures were reproduced and fixed: MediaPipe module loader, Transformers.js 4.x
 3. Check face, code and text coverage, toggle a cover, draw a signature cover, and verify no image overflow in portrait/landscape.
 4. Add recipient/purpose watermark, save and inspect copy in gallery; test native Share and cancellation. On a WebGPU-capable device, load the optional model online first, then reload offline, load it from cache and verify the Local model summary label.
 5. Run `eval/test-plan.md` with team-made data. Record actual misses, false covers, scan times and conditions. Do not infer results from automated tests.
+
+## Live deployment (October 9, 2026)
+
+Deployment was performed for this build: the static PWA is published over HTTPS at **https://kurtgav.github.io/takip/** as a GitHub Pages project site (subpath build, `VITE_BASE=/takip/`). `.github/workflows/pages.yml` rebuilds and republishes `dist/` on every push to `master` via `actions/configure-pages`, `upload-pages-artifact` and `deploy-pages`; the run for commit `4852872` completed successfully on the same SHA that contains the base-path changes.
+
+An independent Playwright session against the live HTTPS origin reproduced the offline suite — **15 of 15 checks PASSED**: page load, UI mounted on the subpath, no horizontal overflow, pipeline ready with every precache and worker asset resolved under `/takip/`, service worker controlling the page with scope `https://kurtgav.github.io/takip/`, first-load precache complete, offline reload booting from cache under the subpath, OCR + NER + face + QR/barcode pipelines running offline, face found, QR/barcode decoded from the subpath WASM reader, safe-copy PNG exported, zero processing requests while offline, no HTTP requests during offline processing, and the uncached-fetch guard still blocking after a service-worker restart.
+
+Deployed-artifact read-back: `index.html` references `/takip/assets/...`, `/takip/icon.svg` and `/takip/manifest.webmanifest`; `manifest.webmanifest` sets `start_url` and `scope` to `/takip/`; `sw.js` precaches scope-relative URLs (`index.html`, `wasm/zxing_reader.wasm`, …).
+
+**Not measured on the live host**: physical phone/camera performance, Safari/iOS, the accuracy corpus, venue rehearsal, native OS share sheet, and the optional WebGPU Qwen path (the live pass covers the standard local summary; the real local-LLM initialization and inference remain verified locally, as recorded above).

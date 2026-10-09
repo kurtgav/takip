@@ -1,8 +1,9 @@
 # TAKIP — Live demo script (5 min) + video shot list (~1 min)
 
-> Owner: Hermes · PRD §16.1–§16.3. Updated Session 3 (2026-10-09 18:5x) — the app is **built**
-> (F1–F16); every on-screen element below exists in the real app. Say only what the run shows,
-> and quote numbers only from `eval/results.md`.
+> Owner: Hermes · PRD §16.1–§16.3. Updated Session 4 (2026-10-09 20:59) — the app is **built**
+> (F1–F16) and **deployed live** at **https://kurtgav.github.io/takip/** (HTTPS); every on-screen
+> element below exists in the real app. Say only what the run shows, and quote numbers only from
+> `eval/results.md`.
 >
 > **Golden rule of this script:** speak the *spoken* lines, do the *on-screen* actions, in the
 > listed order. If something hasn't been rehearsed on the actual venue phone yet, use its fallback
@@ -12,7 +13,8 @@
 
 - Phone: **TAM build / highest brightness**, **Do Not Disturb on**, **auto-rotate off**, screen
   timeout **off** (or 10 min), notifications cleared.
-- App already **loaded once online** and showing **Ready offline**; the offline photo buttons are
+- App already **loaded once online** at the live HTTPS URL **https://kurtgav.github.io/takip/**
+  (or a local HTTPS preview) and showing **Ready offline**; the offline photo buttons are
   enabled. Smart-summary model downloaded **only if** you're showing the local-LLM line.
 - **SAMPLE** test card in hand (made-up details, clearly labelled, not a replica of a real ID).
 - **Backup image** loaded in the gallery in case venue lighting defeats the camera (PRD §16.3).
@@ -69,6 +71,9 @@ summary. They're downloaded **once**; after that it's **airplane-mode clean**.
 Our measured suite: **30 of 30 unit tests, 11 of 11 browser tests**, and a full
 scan-and-export with the network log at **zero**. What still needs the internet? **Only the first
 load.**"
+**If a judge wants to try it themselves:** "It's public and live over HTTPS — **kurtgav.github.io/takip** —
+and the deployed copy re-passed our offline suite **15 of 15**." (Verified deploy from
+`eval/results.md` §Live deployment; not a phone-measured number.)
 **Honesty line (say it before a judge asks):** "Recall and scan-time on real phones is our next
 measurement — we run the 30-photo set on-device; we report it exactly as measured, misses
 included."
@@ -88,7 +93,7 @@ Silent-friendly: every beat readable without sound; add captions in post.
 | 0:16–0:30 | Scanning progress → **review screen**; before/after toggle reveals **name, DOB, address, ID no., face** covered | Hold on the 🔴 **High** risk summary |
 | 0:30–0:40 | Add **watermark** → tiled text appears | Recipient + purpose + date |
 | 0:40–0:50 | **Save / Share** the safe copy | If native share sheet untested, show **Save safe copy** + the flattened PNG; caption "metadata stripped" |
-| 0:50–1:00 | **End card**: "All AI runs on your device." + **TAKIP** | Also add "0 uploads" for reinforcement |
+| 0:50–1:00 | **End card**: "All AI runs on your device." + **TAKIP** | Add "0 uploads" and the live URL `kurtgav.github.io/takip` for reinforcement |
 
 ## Demo safety rules (PRD §16.3) — non-negotiable
 
