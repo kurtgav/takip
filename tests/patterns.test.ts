@@ -46,6 +46,26 @@ test('detects contact, financial, email, safety-net, and optional reference', ()
   ]);
 });
 
+test('safety net covers trailing punctuation, split numeric runs, and embedded sequences', () => {
+  const detections = detectPatterns(words([
+    ['123456789,'],
+    ['Code', '123', '456', '789,'],
+    ['TXN123456789'],
+  ]));
+  assert.deepEqual(detections.map(({ category, x, width }) => [category, x, width]), [
+    ['digits', 0, 80],
+    ['digits', 90, 260],
+    ['digits', 0, 80],
+  ]);
+});
+
+test('punctuated labeled reference remains optional and claims its full value', () => {
+  const detections = detectPatterns(words([['Ref', 'No.', 'TXN123456789,']]));
+  assert.deepEqual(detections.map(({ category, enabled, x }) => [category, enabled, x]), [
+    ['reference', false, 180],
+  ]);
+});
+
 test('uses English or Filipino labels on same or next line for personal fields', () => {
   const detections = detectPatterns(words([
     ['Pangalan'], ['Ana', 'Reyes'],

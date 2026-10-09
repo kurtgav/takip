@@ -143,10 +143,14 @@ export function detectPatterns(words: Word[]): Detection[] {
       run = [];
     };
     for (const word of line) {
-      if (!claimed.has(word.index) && /^[\d\s().+-]+$/.test(word.text)) run.push(word);
+      const numericText = word.text.replace(/^[,;:]+|[,;:.]+$/g, '');
+      if (!claimed.has(word.index) && numericText.length > 0 && /^[\d\s().+-]+$/.test(numericText)) run.push(word);
       else flush();
     }
     flush();
+  }
+  for (const word of indexed) {
+    if (!claimed.has(word.index) && /\d{9,}/.test(word.text)) add('digits', [word]);
   }
   return detections.toSorted((a, b) => a.y - b.y || a.x - b.x);
 }

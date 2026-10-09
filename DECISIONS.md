@@ -27,3 +27,9 @@
 - All QR codes conservatively score High: PRD ties QR risk to an ID but P2 document classification is not implemented. Unknown long numbers score Medium. Multiple minor exposed categories score Medium. These choices favor review instead of a misleading Low label.
 - Synthetic face fixture generated with built-in OpenAI image_gen without reference photos; no real identity or government design. Saved `tests/assets/sample-synthetic-face.png`, SHA-256 `831872d94e751b322d705e31d9395467611b75226b02abdb334027148a0e0c0f`. Prompt: fictional frontal adult portrait, even studio light, plain background, separate prominent “SAMPLE — SYNTHETIC PERSON” footer; no real-person reference, official design, numbers, seals, logos or signatures. Fixture verified visually, copied unchanged.
 - Installed TypeScript is 6.0.3 per package-lock.json (initial registry latest lookup reported 7.0.2; actual installed/verified configuration takes precedence).
+
+## Phase 5 offline verification
+
+- First real offline reload FAILED: Vite preview serves static assets with `Vary: Origin`. Precache requests had no Origin header; browser module/style requests did, causing Cache API misses even though bytes were cached. Verified cached response headers directly. Fixed static same-origin manifest matching with `ignoreVary:true`; cache contains only immutable public build assets, never user-specific responses.
+- Processing guard stores only client IDs and blocked-attempt counts in a dedicated cache so service-worker suspension cannot accidentally allow networking. No image, OCR text, result, category list, recipient or purpose is persisted.
+- Guard covers scan and review/export until New photo. A cache miss is blocked and counted separately from real network requests. CSP additionally restricts connections to same origin. Browser log tests independently count all HTTP(S) resource requests during processing.

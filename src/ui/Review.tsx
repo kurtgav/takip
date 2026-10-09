@@ -6,19 +6,22 @@ import type { ScanOutput } from '../workers/protocol';
 import { downloadCopy } from '../render/download';
 import { useBlobUrl } from './useBlobUrl';
 import { PhotoEditor } from './PhotoEditor';
+import { WatermarkEditor } from './WatermarkEditor';
 
-interface Props { result: ScanOutput; pipeline: Pipeline; onReset: () => void }
+interface Props { result: ScanOutput; pipeline: Pipeline; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void }
 
-export function Review({ result, pipeline, onReset }: Props) {
+export function Review({ result, pipeline, summary, onReset }: Props) {
   const [detections, setDetections] = useState(result.detections);
   const [before, setBefore] = useState(false);
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<string>();
-  const [watermark] = useState<Watermark>();
+  const [watermark, setWatermark] = useState<Watermark>();
   const [rendered, setRendered] = useState<{ blob: Blob; key: string }>();
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [reviewed, setReviewed] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareMessage, setShareMessage] = useState('');
   const key = JSON.stringify({ detections, watermark });
   const ready = rendered?.key === key;
   const originalUrl = useBlobUrl(result.original);
@@ -26,6 +29,7 @@ export function Review({ result, pipeline, onReset }: Props) {
   const categories = result.detections.map(box => box.category);
   const risk = riskLevel(categories);
   const exposed = detections.filter(box => !box.enabled);
+  const invalidWatermark = !!watermark && (!watermark.recipient.trim() || !watermark.purpose.trim() || !watermark.date);
 
   useEffect(() => {
     let current = true;
@@ -44,8 +48,20 @@ export function Review({ result, pipeline, onReset }: Props) {
     setDetections(items => [...items, { ...box, id, category: 'manual', enabled: true }]); setSelected(id); setAdding(false);
   }
   function save() {
-    if (!ready || !reviewed) return;
+    if (!ready || !reviewed || invalidWatermark) return;
     downloadCopy(rendered.blob); setSaved(true);
+  }
+  async function share() {
+    if (!ready || !reviewed || invalidWatermark) return;
+    const file = new File([rendered.blob], 'takip-safe-copy.png', { type: 'image/png' });
+    setShareMessage('');
+    if (!navigator.share || !navigator.canShare?.({ files: [file] })) { save(); return; }
+    setSharing(true);
+    try { await navigator.share({ files: [file], title: 'TAKIP safe copy' }); setSaved(true); }
+    catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') setShareMessage('Share cancelled. Your covered copy is still here.');
+      else { downloadCopy(rendered.blob); setSaved(true); setShareMessage('Sharing was unavailable. Downloaded the covered copy instead.'); }
+    } finally { setSharing(false); }
   }
   return <section className="review" aria-label="Review your photo">
     <div className="section-heading"><div><p className="eyebrow">02 / REVIEW & COVER</p><h1>Your details. Your decision.</h1></div><button className="secondary" onClick={onReset}>New photo</button></div>
@@ -57,7 +73,7 @@ export function Review({ result, pipeline, onReset }: Props) {
       {adding && <button className="secondary" onClick={() => add({ x: 0, y: 0, width: result.width, height: result.height })}>Cover entire photo</button>}
     </div><aside className="review-details">
       <div className={`risk risk-${risk.toLowerCase()}`}><span>Original exposure</span><strong>{risk} risk</strong></div>
-      <p className="summary">{templateSummary(categories)}</p><p className="caption">Standard on-device summary · {(result.elapsedMs / 1000).toFixed(1)}s scan</p>
+      <p className="summary">{summary?.text ?? templateSummary(categories)}</p><p className="caption" data-testid="summary-source">{summary?.source === 'model' ? 'Local model summary' : 'Standard on-device summary'} · {(result.elapsedMs / 1000).toFixed(1)}s scan</p>
       {result.warnings.map(warning => <p className="notice" key={warning}>{warning}</p>)}
       <h2>Detected details</h2><p className="caption">{result.detections.length} sensitive items found. Select a chip to highlight its box; use its checkbox to change coverage.</p>
       <ul className="detection-list" aria-label="Detected items">{detections.map((box, index) => <li key={box.id} data-category={box.category}>
@@ -67,10 +83,12 @@ export function Review({ result, pipeline, onReset }: Props) {
       {detections.length === 0 && <p>No details detected. This is not a guarantee of safety. Add any covers needed.</p>}
       {exposed.length > 0 && <p className="notice">{exposed.length} detected {exposed.length === 1 ? 'item remains' : 'items remain'} visible. Check that you intend to share {exposed.length === 1 ? 'it' : 'them'}.</p>}
     </aside></div>
+    <WatermarkEditor value={watermark} onChange={setWatermark} />
     <div className="export-panel"><label className="review-check"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} />I checked the photo, including signatures and any missed details.</label>
-      <div className="actions"><button disabled={!ready || !reviewed} onClick={save}>Save safe copy</button></div>
+      <div className="actions"><button disabled={!ready || !reviewed || invalidWatermark || sharing} onClick={save}>Save safe copy</button><button className="secondary" disabled={!ready || !reviewed || invalidWatermark || sharing} onClick={() => void share()}>{sharing ? 'Sharing…' : 'Share safe copy'}</button></div>
       {!ready && !error && <p role="status">Preparing covered copy…</p>}{error && <p role="alert">{error}</p>}
       {saved && <p className="success" role="status">Location data removed. Original stays on your device.</p>}
+      {shareMessage && <p role="status" className="caption">{shareMessage}</p>}
     </div>
   </section>;
 }

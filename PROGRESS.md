@@ -30,3 +30,18 @@
 - PASSED: production build and 3 isolated Chromium tests, including actual OCR and generated small face/QR/barcode/NER detection. Browser suite 12.5 seconds (not a phone scan benchmark).
 - Runtime failures and fallbacks documented in DECISIONS.md; no fake detector output. Synthetic face fixture is labeled and contains no real person.
 - Phase approximately 8 minutes. Current Phase 4: complete review/touch-up/risk/export. Risk unit tests are ready (7 passing). Browser warnings from MediaPipe's GPU setup are dependency diagnostics, not upload activity.
+
+## Phase 4 — review, touch-up, risk, clean export (F7–F9)
+
+- Before/After views, category chips and highlighted boxes, accessible cover checkboxes, drag-to-add rectangles, original risk level, detected/exposed counts, mandatory review checkbox, flattened PNG download, and discard/new-photo flow.
+- PASSED: 19 unit tests, lint, types, production build. Three detection/home browser tests and dedicated real review/export test passed. Review test toggles covers, draws a manual box, checks exact opaque exported pixel, inserts synthetic PNG text metadata and confirms it is removed. Phone widths 320/390 have no overflow; screenshots inspected.
+- npm audit including production dependency check: 0 vulnerabilities after scoped Node dependency overrides.
+- Approximately 7 minutes this phase. Next Phase 5: explicit complete-cache readiness, network guard/counter, offline reload→scan→export proof.
+
+## Phase 5 — offline and live local proof (F10–F11)
+
+- Production service worker precaches all core model/runtime/build assets; input waits for controlled complete cache and initialized detectors. No runtime remote sources; CSP same-origin connections only.
+- PASSED: actual fresh offline reload, scan with OCR/face/NER/QR/barcode, review and download; browser HTTP(S) request log empty and UI 0 requests/0 blocked attempts. Suspension/restart guard also PASSED (uncached probe blocked, retry attempts counted). Final regression 1 passed in 68.1 seconds; includes browser worker-stop wait, not scan latency.
+- First offline attempt failed on Vary: Origin cache matching; fixed and verified. Probe count initially expected 1 but Chromium retried it; assertion now checks all attempts blocked and real request count zero.
+- Independent Astra privacy review identified update-install bypass and punctuation/prefix safety-net gaps. Fixed safety net with two new regressions (21 total tests pass); update installer now defers while a live processing guard exists. Update-specific browser regression pending.
+- Phase approximately 9 minutes. Begin Phase 6: real optional local LLM (categories only), tiled watermark, native share/download fallback. Core zero-network proof completed before Phase 6.
