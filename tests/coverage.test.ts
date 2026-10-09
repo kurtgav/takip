@@ -19,6 +19,7 @@ test('student and employee identifiers count as real identity numbers', () => {
   assert.deepEqual(coverageWarnings(words('Student ID'), ['full_name', 'student_number'], 'ID'), []);
   assert.deepEqual(coverageWarnings(words('Learner reference number'), ['full_name', 'learner_number'], 'ID'), []);
   assert.deepEqual(coverageWarnings(words('Employee ID'), ['full_name', 'employee_number'], 'ID'), []);
+  for (const title of ['Student ID', 'Employee ID']) assert.deepEqual(coverageWarnings(words(title), ['full_name', 'identity_number'], 'ID'), []);
   assert.match(coverageWarnings(words('Student ID'), ['full_name'], 'ID').join(' '), /Student ID/);
 });
 

@@ -422,6 +422,18 @@ test('labeled school and employee fields distinguish institution metadata', () =
   ]);
 });
 
+test('generic ID number labels protect short holder IDs without relabeling school or receipt metadata', () => {
+  for (const title of ['STUDENT ID', 'EMPLOYEE ID']) for (const label of ['ID No.', 'ID Number', 'Identification Number']) {
+    const detections = detectPatterns([at(title, 10, 0, 160), at(label, 10, 50, 150), at('A-1234', 10, 72, 80)]);
+    assert.deepEqual(detections.map(({ category, x, y, width }) => [category, x, y, width]), [['identity_number', 10, 72, 80]]);
+  }
+  for (const label of ['School ID', 'School ID Number', 'School ID No.']) {
+    assert.deepEqual(detectPatterns([at(label, 10, 10, 150), at('123456', 10, 32, 80)], 'ID'), []);
+  }
+  assert.deepEqual(detectPatterns(words([['ID', 'No.', 'UNKNOWN']]), 'ID'), []);
+  assert.deepEqual(detectPatterns(words([['ID', 'Number', '123456']]), 'Receipt'), []);
+});
+
 test('government department headings are not employee details and medical values stop at field boundaries', () => {
   const detections = detectPatterns([
     ...words([['DEPARTMENT', 'OF', 'TRANSPORTATION']]),

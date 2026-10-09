@@ -10,7 +10,7 @@ export const categoryLabels = {
   expiry_date: 'Expiry date', issue_date: 'Issue date', birthplace: 'Place of birth',
   phone: 'Phone number', card_number: 'Card number', account_number: 'Account number',
   reference: 'Reference number', email: 'Email address', digits: 'Long number',
-  student_number: 'Student number', learner_number: 'Learner reference number', employee_number: 'Employee number',
+  student_number: 'Student number', learner_number: 'Learner reference number', employee_number: 'Employee number', identity_number: 'ID number',
   card_security_code: 'Card security code', payment_secret: 'PIN / one-time password', education: 'Education details',
   sex: 'Sex', nationality: 'Nationality', agency_code: 'Agency / office code',
   medical_details: 'Medical details', employment_details: 'Employment details',

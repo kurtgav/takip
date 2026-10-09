@@ -79,6 +79,7 @@ const labelRules: Rule[] = [
   { labels: ['student number', 'student no', 'student id', 'student id number'], category: 'student_number', validate: labeledIdentifier },
   { labels: ['learner reference number', 'lrn'], category: 'learner_number', validate: numericLength(12) },
   { labels: ['employee number', 'employee no', 'employee id', 'employee id number', 'personnel number', 'personnel no'], category: 'employee_number', validate: labeledIdentifier },
+  { labels: ['id no', 'id number', 'identification number'], category: 'identity_number', validate: labeledIdentifier },
   { labels: ['course', 'program', 'year level', 'section'], category: 'education', validate: value => /[a-z0-9]/i.test(value) },
   { labels: ['sss number', 'sss no', 'ss number', 'ss no', 'sss'], category: 'sss', validate: numericLength(10) },
   { labels: ['common reference number', 'crn', 'umid number'], category: 'umid', validate: numericLength(12) },

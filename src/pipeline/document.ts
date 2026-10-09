@@ -10,7 +10,7 @@ const clues: Record<Exclude<DocumentGuess, 'Unknown'>, RegExp[]> = {
 
 const idCategories = new Set<Category>([
   'philsys_number', 'tin', 'sss', 'umid', 'philhealth', 'pagibig', 'drivers_license', 'passport', 'mrz',
-  'student_number', 'learner_number', 'employee_number', 'government_number', 'pagibig_rtn',
+  'student_number', 'learner_number', 'employee_number', 'identity_number', 'government_number', 'pagibig_rtn',
 ]);
 
 export function guessDocument(words: Word[], categories: Category[] = []): DocumentGuess {

@@ -64,7 +64,7 @@ test('summary mentions only supplied category labels', () => {
   assert.doesNotMatch(summary, /Full name|Address|Birthday|ID number|Account number|QR code/);
 });
 test('new holder identifiers and payment secrets are high risk; issuer metadata and model guesses are not', () => {
-  for (const category of ['student_number', 'learner_number', 'employee_number', 'government_number', 'pagibig_rtn', 'card_security_code', 'payment_secret'] as const) assert.equal(riskLevel([category]), 'High');
+  for (const category of ['student_number', 'learner_number', 'employee_number', 'identity_number', 'government_number', 'pagibig_rtn', 'card_security_code', 'payment_secret'] as const) assert.equal(riskLevel([category]), 'High');
   assert.equal(riskLevel(['medical_details']), 'Medium');
   assert.equal(riskLevel(['education']), 'Medium');
   assert.equal(riskLevel(['agency_code']), 'Low');

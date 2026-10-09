@@ -24,6 +24,8 @@ test('ID numbers support an ID guess but birthday alone does not', () => {
   assert.equal(guessDocument(words('Sample details'), ['tin']), 'ID');
   assert.equal(guessDocument(words('Sample details'), ['birthday']), 'Unknown');
   assert.equal(guessDocument(words("Driver's license Nationality"), []), 'ID');
+  assert.equal(guessDocument(words('ID No.'), ['identity_number']), 'ID');
+  assert.equal(usesEntityModel('Unknown', ['identity_number']), false);
 });
 
 test('seller preset exposes only name and face while preserving manual covers', () => {
