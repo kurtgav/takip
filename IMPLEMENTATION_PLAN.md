@@ -18,13 +18,13 @@ PRD.md is the scope. Build sequentially through PRD §13; checkpoint after every
 | 6 | F12 Summary | P1 | Local WebLLM, categories-only input, bounded output, truthful template fallback |
 | 6 | F13 Watermark | P1 | Recipient/purpose/date, diagonal tiled live preview and export |
 | 6 | F14 Share | P1 | Native file share if available, download fallback; cancelled share handled |
-| 7 | F15 Document guess | P2 | Only after P0/P1 verified, if time allows |
-| 7 | F16 Presets | P2 | Only after P0/P1 verified, if time allows |
-| 7 | F17 PaddleOCR | P2 | Only after P0/P1 verified, if time allows |
+| 7 | F15 Document guess | P2 | Implemented local heuristic, ambiguity returns Unknown; unit/browser checks |
+| 7 | F16 Presets | P2 | Implemented explicit seller/cover-all presets, preserve manual covers and reset review; unit/browser checks |
+| 7 | F17 PaddleOCR | P2 | Deferred after official SDK research; no paired accuracy/device evidence to justify replacement |
 
 ## Dependencies and model candidates
 
-React, Vite, TypeScript, Tailwind, vite-plugin-pwa/Workbox; Tesseract.js local worker/core and English LSTM data; MediaPipe tasks-vision WASM and BlazeFace short-range; Transformers.js with quantized TinyBERT NER; ZXing WASM reader; WebLLM Qwen 0.5B instruct. Exact registry versions, model revisions, source URLs, sizes and licenses go in DECISIONS.md after verification. Models and WASM are acquired at build setup, served same-origin, and precached. Optional LLM download is separate from photo processing.
+React, Vite, TypeScript, Tailwind, vite-plugin-pwa/Workbox; Tesseract.js local worker/core and English LSTM data; MediaPipe tasks-vision WASM and BlazeFace short-range; Transformers.js with quantized DistilBERT NER; ZXing WASM reader; WebLLM Qwen 0.5B instruct. Exact registry versions, model revisions, source URLs, sizes and licenses are in DECISIONS.md. Models and WASM are acquired at build setup, served same-origin, and precached. Optional LLM download is separate from photo processing.
 
 ## Checks
 

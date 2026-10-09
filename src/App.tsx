@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { supportsWebGPU, validatePhoto } from './platform';
+import { canRunSmartSummary, validatePhoto } from './platform';
 import { Pipeline } from './pipeline/client';
 import type { ScanOutput } from './workers/protocol';
 import { Review } from './ui/Review';
@@ -21,8 +21,10 @@ export function App() {
   const [smartLoading, setSmartLoading] = useState(false);
   const [smartReady, setSmartReady] = useState(false);
   const [smartStatus, setSmartStatus] = useState('');
+  const [gpuReady, setGpuReady] = useState(false);
   const [summary, setSummary] = useState<{ text: string; source: 'model' | 'template' }>();
   useEffect(() => () => summaryEngine.dispose(), [summaryEngine]);
+  useEffect(() => { void canRunSmartSummary().then(setGpuReady); }, []);
   useEffect(() => {
     let current = true;
     let client: Pipeline | undefined;
@@ -81,15 +83,15 @@ export function App() {
         {busy && <ol className="scan-steps" aria-label="Scanning progress">{steps.map((text, index) => <li key={text} className={index === step ? 'active' : index < step ? 'complete' : ''}><span>{index < step ? '✓' : index + 1}</span>{text}</li>)}</ol>}
         {(!ready || busy) && !error && <p className="setup" role="status">{progress}</p>}
         {error && <div className="notice" role="alert"><p>{error}</p>{!ready && <button className="secondary" onClick={retry}>Retry setup</button>}</div>}
-        {!busy && <p className="caption">{ready ? 'Ready for airplane mode. ' : 'One-time download of local tools (about 215 MB). '}Use a clear, well-lit photo. Automatic checks can miss details; always review before sharing.</p>}
+        {!busy && <p className="caption">{ready ? 'Ready for airplane mode. ' : 'One-time download of local tools (about 230 MB). '}Use a clear, well-lit photo. Automatic checks can miss details; always review before sharing.</p>}
       </section>
-      {!busy && <section className="smart-summary"><h2>Optional smart summary</h2><p className="caption">A small local language model chooses a short explanation. One-time download, about 295 MB. Only detected categories reach this model.</p>
-        <button className="secondary" disabled={!ready || !supportsWebGPU() || smartLoading || smartReady} onClick={() => void prepareSummary()}>{smartReady ? 'Smart summary ready' : smartLoading ? 'Preparing smart summary…' : 'Download smart summary'}</button>
+      {!busy && <section className="smart-summary"><h2>Optional smart summary</h2><p className="caption">A small local language model chooses a short explanation. One-time download, about 290 MB. Only detected categories reach this model.</p>
+        <button className="secondary" disabled={!ready || !gpuReady || smartLoading || smartReady} onClick={() => void prepareSummary()}>{smartReady ? 'Smart summary ready' : smartLoading ? 'Preparing smart summary…' : 'Download smart summary'}</button>
         {smartStatus && <p className="caption" role="status">{smartStatus}</p>}
       </section>}
     </>}
     <input ref={camera} aria-label="Take photo" type="file" accept="image/*" capture="environment" hidden onChange={e => { void select(e.target.files?.[0]); e.target.value = ''; }} />
     <input ref={picker} aria-label="Choose photo" type="file" accept="image/*" hidden onChange={e => { void select(e.target.files?.[0]); e.target.value = ''; }} />
-    <footer>Photos stay in memory. No account. No uploads.<br />{supportsWebGPU() ? 'WebGPU available for optional smart summaries.' : 'This device uses the standard local summary.'}</footer>
+    <footer>Photos stay in memory. No account. No uploads.<br />{gpuReady ? 'WebGPU available for optional smart summaries.' : 'This device uses the standard local summary.'}</footer>
   </main>;
 }

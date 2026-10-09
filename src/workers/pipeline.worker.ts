@@ -4,6 +4,7 @@ import { prepareCodes, findCodes } from '../pipeline/qr';
 import { createNER } from '../pipeline/ner';
 import { detectPatterns } from '../pipeline/patterns';
 import { mergeDetections } from '../pipeline/merge';
+import { guessDocument } from '../pipeline/document';
 import { paintCovers, paintWatermark } from '../render/covers';
 import type { Request, Response } from './protocol';
 import type { Detection, Watermark } from '../types';
@@ -67,6 +68,7 @@ self.onmessage = async ({ data }: MessageEvent<Request>) => {
       const detections = mergeDetections([...patterns, ...freshEntities, ...faceBoxes, ...codeBoxes], original.width, original.height);
       send({ id: data.id, type: 'result', result: {
         width: original.width, height: original.height, detections,
+        documentGuess: guessDocument(words, detections.map(detection => detection.category)),
         elapsedMs: performance.now() - start,
         warnings: words.length ? [] : ['No text found. Check for missed details and add covers manually.'],
         original: image, preview: await render(detections),

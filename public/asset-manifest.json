@@ -208,5 +208,17 @@
     "bytes": 11358,
     "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "source": "node_modules/@huggingface/transformers/LICENSE"
+  },
+  {
+    "path": "/licenses/@mlc-ai-web-llm.txt",
+    "bytes": 11737,
+    "sha256": "d412ab9d5ac17e6931705aac01e5a0d323da5acd2e89a2c19aa8fc05becc59ad",
+    "source": "node_modules/@mlc-ai/web-llm/LICENSE"
+  },
+  {
+    "path": "/licenses/zxing-wasm.txt",
+    "bytes": 1068,
+    "sha256": "fb506e4ade12d7a9efa67c9d76a9a28c8e15d347ca49a69e48e29b40b34ad2ab",
+    "source": "node_modules/zxing-wasm/LICENSE"
   }
 ]

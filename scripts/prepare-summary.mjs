@@ -9,7 +9,7 @@ const files = [
   'tokenizer.json', 'tokenizer_config.json', 'vocab.json', 'merges.txt',
   ...Array.from({ length: 8 }, (_, index) => `params_shard_${index}.bin`),
 ];
-const assets = files.map((file) => ({ source: modelBase + file, destination: `public/summary/qwen/${file}` }));
+const assets = files.map((file) => ({ source: modelBase + file, destination: `public/summary/qwen/resolve/main/${file}` }));
 assets.push({
   source: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/Qwen2-0.5B-Instruct-q4f16_1_cs1k-webgpu.wasm',
   destination: 'public/summary/qwen.wasm',

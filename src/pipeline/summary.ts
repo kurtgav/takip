@@ -1,5 +1,6 @@
 import { categoryLabels, type Category } from '../types.ts';
 import { templateSummary } from './risk.ts';
+import { canRunSmartSummary } from '../platform.ts';
 import { allowedSummarySentences, normalizeSummaryCategories } from './summary-contract.ts';
 
 export { allowedSummarySentences, categoriesPayload, normalizeSummaryCategories } from './summary-contract.ts';
@@ -39,7 +40,7 @@ export class SummaryEngine {
 
   async init(onProgress: (text: string) => void): Promise<void> {
     this.dispose();
-    if (!('gpu' in navigator)) throw new Error('Smart summary requires WebGPU on this device.');
+    if (!await canRunSmartSummary()) throw new Error('Smart summary requires a compatible WebGPU adapter.');
     const worker = new Worker(new URL('../workers/summary.worker.ts', import.meta.url), { type: 'module' });
     this.worker = worker;
     try {

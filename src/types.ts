@@ -12,7 +12,8 @@ export interface Box { x: number; y: number; width: number; height: number }
 export interface Word extends Box { text: string; line: number }
 export interface Detection extends Box { id: string; category: Category; enabled: boolean }
 export interface Watermark { recipient: string; purpose: string; date: string }
+export type DocumentGuess = 'ID' | 'Receipt' | 'Chat screenshot' | 'Bank transfer' | 'Unknown';
 export interface ScanResult {
   width: number; height: number; detections: Detection[]; elapsedMs: number;
-  warnings: string[];
+  warnings: string[]; documentGuess: DocumentGuess;
 }

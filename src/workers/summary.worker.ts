@@ -17,7 +17,7 @@ self.addEventListener('message', async (event: MessageEvent<Request>) => {
       const origin = self.location.origin;
       const appConfig: AppConfig = { model_list: [{
         model_id: MODEL_ID,
-        model: `${origin}/summary/qwen/`,
+        model: `${origin}/summary/qwen/resolve/main/`,
         model_lib: `${origin}/summary/qwen.wasm`,
       }] };
       engine = new MLCEngine({

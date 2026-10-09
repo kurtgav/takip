@@ -58,7 +58,7 @@ const ner = 'https://huggingface.co/onnx-community/distilbert-NER-ONNX/resolve/3
 for (const file of ['config.json', 'tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json', 'vocab.txt', 'onnx/model_quantized.onnx']) {
   await download(ner + file, 'public/models/ner/' + file);
 }
-for (const [packageName, licenseFile] of [['tesseract.js', 'LICENSE.md'], ['tesseract.js-core', 'LICENSE'], ['@huggingface/transformers', 'LICENSE']]) {
+for (const [packageName, licenseFile] of [['tesseract.js', 'LICENSE.md'], ['tesseract.js-core', 'LICENSE'], ['@huggingface/transformers', 'LICENSE'], ['@mlc-ai/web-llm', 'LICENSE'], ['zxing-wasm', 'LICENSE']]) {
   await copy(`node_modules/${packageName}/${licenseFile}`, `public/licenses/${packageName.replace('/', '-')}.txt`);
 }
 await writeFile(new URL('public/asset-manifest.json', root), JSON.stringify(manifest, null, 2) + '\n');

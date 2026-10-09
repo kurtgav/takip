@@ -51,7 +51,7 @@ test('model summary request serializes categories only', async () => {
     terminate() {}
   }
   Object.defineProperty(globalThis, 'Worker', { value: FakeWorker, configurable: true });
-  Object.defineProperty(globalThis, 'navigator', { value: { gpu: {} }, configurable: true });
+  Object.defineProperty(globalThis, 'navigator', { value: { gpu: { requestAdapter: async () => ({ features: new Set(['shader-f16']) }) } }, configurable: true });
   try {
     const engine = new SummaryEngine();
     await engine.init(() => {});

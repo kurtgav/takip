@@ -1,0 +1,26 @@
+TAKIP model attribution
+
+English Tesseract LSTM data: Tesseract contributors, Apache License 2.0.
+https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz
+
+BlazeFace short-range float16 v1: Google MediaPipe, Apache License 2.0.
+https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite
+
+DistilBERT NER: dslim/distilbert-NER, Apache License 2.0.
+ONNX conversion: onnx-community/distilbert-NER-ONNX,
+revision 3a19fe9404a4469d91aa3d551558a97f68872f67.
+The conversion identifies its base model but omits license metadata.
+https://huggingface.co/dslim/distilbert-NER
+https://huggingface.co/onnx-community/distilbert-NER-ONNX
+
+Qwen2.5-0.5B-Instruct: Qwen, Apache License 2.0.
+MLC conversion: mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC,
+revision 32ff081fe7e4dfe4ffb167b94c66fdf11e02b8ad.
+https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct
+https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC
+
+The complete Apache License 2.0 is reproduced in the accompanying
+@mlc-ai-web-llm.txt and tesseract.js-core.txt files.
+TAKIP does not modify the vendored model weights.
+Source URLs, sizes and SHA-256 digests: /asset-manifest.json and
+/summary/manifest.json. See README.md for runtime and provenance limitations.

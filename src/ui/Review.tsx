@@ -7,6 +7,7 @@ import { downloadCopy } from '../render/download';
 import { useBlobUrl } from './useBlobUrl';
 import { PhotoEditor } from './PhotoEditor';
 import { WatermarkEditor } from './WatermarkEditor';
+import { applyCoverPreset, type CoverPreset } from '../pipeline/document';
 
 interface Props { result: ScanOutput; pipeline: Pipeline; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void }
 
@@ -47,6 +48,10 @@ export function Review({ result, pipeline, summary, onReset }: Props) {
     const id = `manual-${crypto.randomUUID()}`;
     setDetections(items => [...items, { ...box, id, category: 'manual', enabled: true }]); setSelected(id); setAdding(false);
   }
+  function applyPreset(preset: CoverPreset) {
+    setDetections(items => applyCoverPreset(items, preset));
+    setBefore(false); setAdding(false); setSelected(undefined);
+  }
   function save() {
     if (!ready || !reviewed || invalidWatermark) return;
     downloadCopy(rendered.blob); setSaved(true);
@@ -73,8 +78,11 @@ export function Review({ result, pipeline, summary, onReset }: Props) {
       {adding && <button className="secondary" onClick={() => add({ x: 0, y: 0, width: result.width, height: result.height })}>Cover entire photo</button>}
     </div><aside className="review-details">
       <div className={`risk risk-${risk.toLowerCase()}`}><span>Original exposure</span><strong>{risk} risk</strong></div>
+      <p><strong>Looks like:</strong> {result.documentGuess}</p>
       <p className="summary">{summary?.text ?? templateSummary(categories)}</p><p className="caption" data-testid="summary-source">{summary?.source === 'model' ? 'Local model summary' : 'Standard on-device summary'} · {(result.elapsedMs / 1000).toFixed(1)}s scan</p>
       {result.warnings.map(warning => <p className="notice" key={warning}>{warning}</p>)}
+      <h2>Minimum share presets</h2><p className="caption">Seller verification leaves names and faces visible, covers other detected details, and keeps manual covers. Review every cover before sharing.</p>
+      <div className="actions" aria-label="Minimum share presets"><button className="secondary" onClick={() => applyPreset('seller-verification')}>Seller verification</button><button className="secondary" onClick={() => applyPreset('cover-all')}>Cover all detected</button></div>
       <h2>Detected details</h2><p className="caption">{result.detections.length} sensitive items found. Select a chip to highlight its box; use its checkbox to change coverage.</p>
       <ul className="detection-list" aria-label="Detected items">{detections.map((box, index) => <li key={box.id} data-category={box.category}>
         <button className={selected === box.id ? 'chip selected' : 'chip'} onClick={() => { setSelected(box.id); setBefore(false); }}>{categoryLabels[box.category]} <span>{index + 1}</span></button>
