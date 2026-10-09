@@ -1,5 +1,5 @@
 import { expect, test, webkit, type Route } from '@playwright/test';
-import { enableAutomaticChecks, expectRequestsCached, samplePhoto } from './sample';
+import { continueToSave, enableAutomaticChecks, expectRequestsCached, samplePhoto } from './sample';
 
 function isToolRequest(requestUrl: string): boolean {
   const pathname = new URL(requestUrl).pathname;
@@ -56,6 +56,7 @@ test('fresh offline reload scans and exports with zero processing requests', asy
   await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
   await expect(page.locator('[data-category="face"]')).toHaveCount(1);
   await expect(page.locator('[data-category="qr_code"]')).toHaveCount(1);
+  await continueToSave(page);
   await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save safe copy' }).click();
@@ -123,7 +124,7 @@ test('WebKit caches local tools and reloads the app offline', async ({ baseURL }
     })).toBe(true);
     await context.setOffline(true);
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Start with a photo' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Cover before you share.' })).toBeVisible();
     await page.waitForFunction(() => !!navigator.serviceWorker.controller);
   } finally { await browser.close(); }
 });
@@ -150,6 +151,7 @@ test('WebKit reloads offline and exports a manually covered photo', async ({ bas
     await page.getByRole('button', { name: 'Add cover', exact: true }).click();
     await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
     await expect(page.locator('[data-category="manual"]')).toHaveCount(1);
+    await continueToSave(page);
     await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Save safe copy' }).click();
@@ -176,6 +178,7 @@ test('manual editor starts without heavy requests and edits offline', async ({ p
   await expect(page.getByText('Not assessed', { exact: true })).toBeVisible({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Add cover', exact: true }).click();
   await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
+  await continueToSave(page);
   await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save safe copy' }).click();

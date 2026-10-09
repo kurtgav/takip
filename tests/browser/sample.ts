@@ -9,6 +9,25 @@ export async function enableAutomaticChecks(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Automatic checks ready offline', exact: true })).toBeVisible({ timeout: 240_000 });
 }
 
+export async function continueToWatermark(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a purpose watermark' })).toBeFocused();
+}
+
+export async function continueToSave(page: Page): Promise<void> {
+  await continueToWatermark(page);
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your safe copy is ready' })).toBeFocused();
+}
+
+export async function expandDetails(page: Page): Promise<void> {
+  const edit = page.getByRole('button', { name: 'Edit detected details', exact: true });
+  await expect(edit).toBeVisible();
+  if (await edit.getAttribute('aria-expanded') === 'false') await edit.click();
+  await expect(edit).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('list', { name: 'Detected items' })).toBeVisible();
+}
+
 export async function expectRequestsCached(page: Page, requestUrls: string[]): Promise<void> {
   const origin = new URL(page.url()).origin;
   expect(requestUrls.filter(requestUrl => new URL(requestUrl).origin !== origin)).toEqual([]);

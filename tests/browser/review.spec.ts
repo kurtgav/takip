@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { crc32 } from 'node:zlib';
-import { enableAutomaticChecks, samplePhoto } from './sample';
+import { continueToSave, continueToWatermark, enableAutomaticChecks, expandDetails, samplePhoto } from './sample';
 
 const PNG_SIGNATURE_BYTES = 8;
 const PRIVATE_MARKER = 'TAKIP_PRIVATE_MARKER_SAMPLE_ONLY';
@@ -46,7 +46,14 @@ function assertPng(png: Buffer): void {
   expect(png.subarray(0, PNG_SIGNATURE_BYTES)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
 }
 
-test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async ({ page }) => {
+async function expectNoOverflow(page: Page): Promise<void> {
+  for (const width of [320, 390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+}
+
+test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async ({ page }, testInfo) => {
   test.setTimeout(300_000);
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
@@ -67,6 +74,8 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
 
   await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText('High risk', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('cover-collapsed.png'), fullPage: true });
+  await expandDetails(page);
   await expect(page.getByRole('list', { name: 'Detected items' }).locator('li')).not.toHaveCount(0);
 
   const before = page.getByRole('button', { name: 'Before', exact: true });
@@ -84,7 +93,7 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
   await firstToggle.check();
   await expect(page.getByText(/remains visible/)).toHaveCount(0);
 
-  await page.locator('.chip').first().click();
+  await page.locator('.detection-list .chip').first().click();
   await expect(page.locator('.cover-hit.highlighted')).toHaveCount(1);
 
   await page.getByRole('button', { name: 'Add cover', exact: true }).click();
@@ -104,6 +113,7 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
     await page.screenshot({ path: path.join(os.tmpdir(), `takip-review-${width}.png`), fullPage: true });
   }
 
+  await continueToSave(page);
   const save = page.getByRole('button', { name: 'Save safe copy', exact: true });
   await expect(save).toBeDisabled();
   await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
@@ -128,6 +138,8 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
   expect(pixel).toEqual([0x14, 0x28, 0x1f, 0xff]);
   await expect(page.getByText('Location data removed. Original stays on your device.')).toBeVisible();
 
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   const automaticDetections = page.locator('.detection-list li:not([data-category="manual"])');
   while (await automaticDetections.count()) {
     await automaticDetections.first().getByRole('button', { name: /^Remove / }).click();
@@ -136,8 +148,59 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
   await expect(page.locator('[data-category="manual"]')).toHaveCount(1);
   await expect(page.getByText('Low risk', { exact: true })).toBeVisible();
   await expect(page.locator('.summary')).toHaveText('Nothing sensitive was detected, but this does not guarantee the image is safe. Review the image carefully before sharing.');
+  await continueToSave(page);
   await expect(page.getByRole('checkbox', { name: /I checked the photo/ })).not.toBeChecked();
-  await expect(save).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Save safe copy', exact: true })).toBeDisabled();
   await expect(page.getByText('Location data removed. Original stays on your device.')).toHaveCount(0);
   expect(browserErrors).toEqual([]);
+});
+
+test('back navigation retains edits and later edits invalidate review confirmation', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+
+  await page.getByRole('button', { name: 'Add cover', exact: true }).click();
+  await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Edit detected details', exact: true })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('list', { name: 'Detected items' })).toBeVisible();
+  await continueToWatermark(page);
+  const previewPixel = await page.locator('.photo-surface img').evaluate(async element => {
+    const image = element as HTMLImageElement; await image.decode();
+    const canvas = document.createElement('canvas'); canvas.width = 1; canvas.height = 1;
+    const context = canvas.getContext('2d')!; context.drawImage(image, 0, 0, 1, 1);
+    return [...context.getImageData(0, 0, 1, 1).data];
+  });
+  expect(previewPixel).toEqual([0x14, 0x28, 0x1f, 0xff]);
+  await expect(page.getByRole('button', { name: /^Uncover / })).toHaveCount(0);
+  await page.getByRole('checkbox', { name: 'Add a purpose watermark' }).check();
+  await page.getByLabel('Sending to', { exact: true }).fill('SAMPLE Recipient');
+  await page.getByLabel('Purpose', { exact: true }).fill('SAMPLE verification');
+  await expectNoOverflow(page);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.screenshot({ path: testInfo.outputPath('watermark-complete.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByText('1 private detail covered', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Uncover / })).toHaveCount(0);
+  await expectNoOverflow(page);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.screenshot({ path: testInfo.outputPath('save-ready.png'), fullPage: true });
+  await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
+
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.getByLabel('Sending to', { exact: true })).toHaveValue('SAMPLE Recipient');
+  await expect(page.getByLabel('Purpose', { exact: true })).toHaveValue('SAMPLE verification');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.locator('[data-category="manual"] input')).toBeChecked();
+  await page.locator('[data-category="manual"]').getByRole('button', { name: /^Remove / }).click();
+  await expect(page.locator('[data-category="manual"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo remove', exact: true }).click();
+  await expect(page.locator('[data-category="manual"] input')).toBeChecked();
+  await page.locator('[data-category="manual"] input').uncheck();
+
+  await continueToSave(page);
+  await expect(page.getByText('Watermark for SAMPLE Recipient', { exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: /I checked the photo/ })).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Save safe copy', exact: true })).toBeDisabled();
 });

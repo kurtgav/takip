@@ -12,7 +12,7 @@ export default defineConfig({
     manifest: {
       name: 'TAKIP — Cover before you share', short_name: 'TAKIP',
       description: 'On-device privacy filter for your photos.',
-      theme_color: '#164d3e', background_color: '#f4f5ef', display: 'standalone',
+      theme_color: '#efeae0', background_color: '#efeae0', display: 'standalone',
       icons: [
         { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
         { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

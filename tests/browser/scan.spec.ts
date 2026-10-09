@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enableAutomaticChecks, samplePhoto } from './sample';
+import { enableAutomaticChecks, expandDetails, samplePhoto } from './sample';
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -19,6 +19,8 @@ test('real local OCR covers SAMPLE sensitive text', async ({ page }) => {
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+  await expandDetails(page);
   await expect(page.getByText(/sensitive items found/)).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText('0 sensitive items found.', { exact: false })).toHaveCount(0);
   await expect(page.getByRole('img', { name: 'Photo with permanent covers preview' })).toBeVisible();
@@ -28,6 +30,8 @@ test('real face, small portrait, QR, barcode and NER detectors', async ({ page }
   await page.goto('/');
   await enableAutomaticChecks(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+  await expandDetails(page);
   await expect(page.getByText(/sensitive items found/)).toBeVisible({ timeout: 120_000 });
   for (const category of ['face', 'qr_code', 'barcode', 'full_name', 'birthday', 'tin', 'phone', 'email', 'address']) {
     await expect(page.locator(`[data-category="${category}"]`).first()).toBeVisible();

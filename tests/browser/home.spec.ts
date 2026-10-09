@@ -27,6 +27,6 @@ test('dark mode and unavailable WebGPU retain the standard local flow', async ({
   await expect(page.getByRole('button', { name: 'Download smart summary' })).toBeDisabled();
   await expect(page.getByText('This device uses the standard local summary.')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).toBe('rgb(19, 33, 28)');
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).toBe('rgb(21, 20, 15)');
   await page.screenshot({ path: testInfo.outputPath('home-dark.png'), fullPage: true });
 });

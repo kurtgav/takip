@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { enableAutomaticChecks, samplePhoto } from './sample';
+import { continueToSave, continueToWatermark, enableAutomaticChecks, samplePhoto } from './sample';
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -11,11 +11,14 @@ test('watermark appears in flattened export and unsupported sharing downloads', 
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
   const before = await page.locator('.photo-surface img').getAttribute('src');
+  await continueToWatermark(page);
   await page.getByRole('checkbox', { name: 'Add a purpose watermark' }).check();
   await expect(page.getByLabel('Date', { exact: true })).toHaveValue(/\d{4}-\d{2}-\d{2}/);
   await page.getByLabel('Sending to', { exact: true }).fill('SAMPLE Recipient');
   await page.getByLabel('Purpose', { exact: true }).fill('SAMPLE verification');
   await expect(page.locator('.photo-surface img')).not.toHaveAttribute('src', before!);
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your safe copy is ready' })).toBeFocused();
   await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Share safe copy', exact: true }).click();
@@ -46,6 +49,7 @@ test('native share receives only the flattened PNG and cancellation is not succe
   await enableAutomaticChecks(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
+  await continueToSave(page);
   await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
   await page.getByRole('button', { name: 'Share safe copy', exact: true }).click();
   await expect(page.getByText('Share cancelled. Your covered copy is still here.')).toBeVisible();

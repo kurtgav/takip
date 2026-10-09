@@ -4,11 +4,11 @@ import { categoryLabels, type Box, type Detection } from '../types';
 
 interface Props {
   src?: string; width: number; height: number; detections: Detection[];
-  before: boolean; adding: boolean; selected?: string;
+  before: boolean; adding: boolean; selected?: string; readOnly?: boolean;
   onToggle: (id: string) => void; onAdd: (box: Box) => void;
 }
 
-export function PhotoEditor({ src, width, height, detections, before, adding, selected, onToggle, onAdd }: Props) {
+export function PhotoEditor({ src, width, height, detections, before, adding, selected, readOnly = false, onToggle, onAdd }: Props) {
   const surface = useRef<HTMLDivElement>(null);
   const [start, setStart] = useState<{ x: number; y: number }>();
   const [draft, setDraft] = useState<Box>();
@@ -23,7 +23,7 @@ export function PhotoEditor({ src, width, height, detections, before, adding, se
     return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(start.x - end.x), height: Math.abs(start.y - end.y) };
   }
   function down(event: PointerEvent) {
-    if (!adding || before || event.button !== 0) return;
+    if (readOnly || !adding || before || event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     setStart(position(event));
   }
@@ -38,9 +38,9 @@ export function PhotoEditor({ src, width, height, detections, before, adding, se
       onPointerDown={down} onPointerMove={event => { if (start) setDraft(rectangle(event)); }} onPointerUp={up}
       onPointerCancel={() => { setStart(undefined); setDraft(undefined); }}>
       <img src={src} alt={before ? 'Original photo before covers' : 'Photo with permanent covers preview'} draggable={false} />
-      {!before && detections.map((box, index) => <button key={box.id} type="button"
+      {!before && detections.map((box, index) => readOnly ? <span key={box.id} className={`cover-hit ${box.enabled ? 'covered' : 'uncovered'}`} style={style(box)} aria-hidden="true" /> : <button key={box.id} type="button"
         className={`cover-hit ${box.enabled ? 'covered' : 'uncovered'} ${selected === box.id ? 'highlighted' : ''}`}
-        style={style(box)} tabIndex={adding ? -1 : 0} disabled={adding}
+        style={style(box)} tabIndex={adding || readOnly ? -1 : 0} disabled={adding || readOnly}
         aria-label={`${box.enabled ? 'Uncover' : 'Cover'} ${categoryLabels[box.category]} ${index + 1}`}
         aria-pressed={box.enabled} onClick={() => { if (!adding) onToggle(box.id); }} />)}
       {draft && <div className="draw-preview" style={style(draft)} />}
