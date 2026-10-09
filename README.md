@@ -22,7 +22,18 @@ npm run build
 npm run preview
 ```
 
-Open `http://localhost:4173`. Wait for **Ready offline** and enabled photo buttons before switching to airplane mode. Core first-load download is approximately 230 MB, including models and runtimes. Keep the tab open during setup. Use HTTPS when serving to a phone; ordinary LAN HTTP cannot install a service worker. No deployment is included or claimed.
+Open `http://localhost:4173`. Wait for **Ready offline** and enabled photo buttons before switching to airplane mode. Core first-load download is approximately 230 MB, including models and runtimes. Keep the tab open during setup. Use HTTPS when serving to a phone; ordinary LAN HTTP cannot install a service worker.
+
+## Deploy
+
+Live PWA: **https://kurtgav.github.io/takip/** (GitHub Pages over HTTPS — required for service worker and phone install). Source: https://github.com/kurtgav/takip.
+
+`.github/workflows/pages.yml` rebuilds and republishes `dist/` on every push to `master`, and on manual *Run workflow*. The job is `npm ci` + `npm run build` only, then `actions/configure-pages` / `upload-pages-artifact` / `deploy-pages`; it needs no secrets.
+
+Two rules keep that deploy working:
+
+- Model and runtime assets stay committed under `public/` (468 MB on disk, largest file under the 100 MB GitHub limit). The deploy job cannot run `npm run assets` / `npm run assets:summary`, so those files must be in Git.
+- The site is served from the `/takip/` subpath, so the workflow builds with `VITE_BASE=/takip/` and every runtime asset URL goes through `assetPath()` (`src/asset.ts`, reading `import.meta.env.BASE_URL`). Local `npm run preview` builds and serves at `/`. Root-absolute paths (`/sw.js`, `/ocr/...`, `/models/...`, `/wasm/...`, `href="/"`) 404 on the deployed site — use `assetPath()` instead.
 
 Optional **Download smart summary** loads approximately 290 MB from the same static host; its 4.85 MB WASM runtime is included in core setup. WebLLM caches the model assets; load the model before choosing a photo, including after an offline reload. A compatible WebGPU adapter with `shader-f16` and sufficient GPU memory is required. Unsupported devices, initialization errors and inference timeouts use the clearly labeled standard local summary.
 
@@ -94,13 +105,15 @@ TAKIP protects photos people are afraid to leak. Uploading an ID or personal scr
 
 `eval/results.md` records only executed results, failures and unmeasured metrics. Physical phone performance, Safari, human accuracy set and venue rehearsals are not yet verified. PRD and acceptance mapping: `PRD.md`, `IMPLEMENTATION_PLAN.md`; current progress: `PROGRESS.md`.
 
+The deployed PWA was verified over live HTTPS on October 9, 2026 at https://kurtgav.github.io/takip/ with 15 of 15 checks passing: page load, UI mounted on the subpath, no horizontal overflow, service worker controlling the page with scope `https://kurtgav.github.io/takip/`, first-load precache complete, offline reload, OCR + NER + face + QR/barcode pipelines running offline, safe-copy PNG export, and zero network requests during offline processing (the same suite passes 11/11 locally against `npm run preview`).
+
 F1–F16 are implemented. F17 PaddleOCR is deferred: a viable official SDK was researched, but no paired accuracy corpus or target phone is available to establish improvement over the verified Tesseract path.
 
 Submission checklist (PRD §15):
 
 - Project name: **TAKIP**. Short description: TAKIP finds and covers sensitive details in photos using on-device AI. Review automatic covers, add missed covers and a purpose watermark, then export a flattened PNG. Works offline after setup; detection can miss details.
 - Team members: **NOT PROVIDED**. Add actual names and roles before submission.
-- Public GitHub repository: **NOT VERIFIED**. Confirm the actual repository URL and public visibility before the stated October 10, 10:00 AM deadline.
+- Public GitHub repository: **https://github.com/kurtgav/takip** (public; verified reachable). Live PWA demo: **https://kurtgav.github.io/takip/**. Confirm this is the URL to submit before the stated October 10, 10:00 AM deadline.
 - Approximately one-minute demo video: **NOT PROVIDED**. Record the verified flow with clearly labeled SAMPLE content only.
 - X / LinkedIn video post URL: **NOT PROVIDED**. Event instructions require tagging Devin / Cognition and including **#AppBuildersPH**.
 - Runtime, internet requirements, models, technologies, cloud services, existing assets, AI development tools and the “why local” answer: disclosed above.
