@@ -20,7 +20,8 @@ const cacheName = crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.
   .then(hash => `takip-core-${Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')}`);
 const guardCacheName = 'takip-processing-guards';
 const manifestUrl = new URL('__offline_manifest__', self.registration.scope);
-const guardUrl = (id: string) => new URL(`__processing_guard__/${encodeURIComponent(id)}`, self.registration.scope);
+const guardPrefix = new URL('__processing_guard__/', self.registration.scope).href;
+const guardUrl = (id: string) => new URL(encodeURIComponent(id), guardPrefix);
 let setupStatus = { type: 'OFFLINE_PROGRESS', text: 'Checking offline app…' };
 
 interface ToolDownload {
@@ -233,6 +234,7 @@ self.addEventListener('fetch', event => {
     const guards = await caches.open(guardCacheName);
     const active = [];
     for (const key of await guards.keys()) {
+      if (!key.url.startsWith(guardPrefix)) continue;
       const client = clients.find(client => guardUrl(client.id).href === key.url);
       if (!client) await guards.delete(key);
       else active.push({ key, client });

@@ -23,7 +23,14 @@ test('rates specified and conservative combinations Medium', () => {
   assert.equal(riskLevel(['face', 'full_name']), 'Medium');
   assert.equal(riskLevel(['digits']), 'Medium');
   assert.equal(riskLevel(['signature']), 'Medium');
+  assert.equal(riskLevel(['barcode']), 'Medium');
   assert.equal(riskLevel(['email', 'phone']), 'Medium');
+});
+
+test('barcode summary does not describe unknown encoded data as limited exposure', () => {
+  const summary = templateSummary(['barcode']);
+  assert.match(summary, /identify, impersonate, or contact/i);
+  assert.doesNotMatch(summary, /exposure is limited/i);
 });
 
 test('rates zero or one minor category Low and ignores duplicates/manual covers', () => {

@@ -101,3 +101,28 @@ test('missing saved tools return to setup before opening the photo', async ({ pa
   await expect(page.getByRole('img', { name: 'Photo with permanent covers preview' })).toHaveCount(0);
   await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
 });
+
+test('real receipt OCR separates customer contacts from merchant numbers on shared rows', async ({ page }) => {
+  await page.goto('/');
+  await enableAutomaticChecks(page);
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 1400; canvas.height = 700;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'black'; ctx.font = '34px Arial';
+    ['OFFICIAL RECEIPT - SAMPLE ONLY', 'VAT CASH CHANGE',
+      'Email: sample@example.invalid Order: 123', 'Phone: 0917-000-0000 Terminal: 7',
+      'TIN: 123-456-789-000', 'Reference Number: 4111111111111111',
+      'Terminal ID: 0917-234-5678', 'Order No.: 0917-345-6789',
+    ].forEach((line, index) => ctx.fillText(line, 40, 70 + index * 75));
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({
+    name: 'sample-receipt.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64'),
+  });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator('[data-category="email"]')).toHaveCount(1);
+  await expect(page.locator('[data-category="phone"]')).toHaveCount(1);
+  await expect(page.locator('[data-category="tin"], [data-category="card_number"]')).toHaveCount(0);
+  await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
+});

@@ -49,6 +49,9 @@ const identifierPatterns: Array<[Category, RegExp]> = [
 ];
 type Rule = { labels: string[]; category?: Category; validate?: (value: string) => boolean; enabled?: boolean; customer?: boolean };
 const personalText = (value: string) => /[a-z]/i.test(value) && !/\b(?:authority|department|government|office|agency|republic)\b/i.test(value);
+const receiptMerchantLabel = '(?:tin|vat reg|terminal|order|receipt|invoice|transaction|reference|ref|merchant|permit|accreditation|serial|machine|cashier)';
+const receiptMerchantRow = new RegExp(`\\b${receiptMerchantLabel}(?: no| number| id)?\\b`, 'i');
+const receiptMerchantPrefix = new RegExp(`(?:^| )${receiptMerchantLabel}(?: no| number| id)?$`);
 const labelRules: Rule[] = [
   { labels: ['date of birth', 'birth date', 'birthday', 'dob', 'petsa ng kapanganakan', 'kapanganakan'], category: 'birthday', validate: labeledDate },
   { labels: ['expiration date', 'expiry date', 'date of expiry', 'date of expiration', 'valid until', 'petsa ng pagkapaso'], category: 'expiry_date', validate: value => datePattern.test(value) },
@@ -143,7 +146,7 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
         }
       }
     }
-    if (receipt && /\b(?:tin|vat reg|terminal|order|receipt no|invoice no|transaction id|reference|ref no|merchant|permit|accreditation|serial|machine|cashier)\b/i.test(normalize(row.map(word => word.text).join(' ')))) {
+    if (receipt && receiptMerchantRow.test(normalize(row.map(word => word.text).join(' ')))) {
       row.forEach(word => blocked.add(word.index));
     }
   }
@@ -213,11 +216,20 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
 
   for (const row of rows) {
     for (let start = 0; start < row.length; start += 1) {
-      if (claimed.has(row[start].index) || blocked.has(row[start].index)) continue;
+      if (claimed.has(row[start].index)) continue;
       for (let end = Math.min(row.length, start + 5); end > start; end -= 1) {
         const items = row.slice(start, end);
-        if (items.some(item => claimed.has(item.index) || blocked.has(item.index))) continue;
+        if (items.some(item => claimed.has(item.index))) continue;
         const compact = items.map(item => item.text).join('').replace(/[,.¢]$/, '').replace(/[ ()]/g, '');
+        if (receipt && items.some(item => blocked.has(item.index))) {
+          const prefix = normalize(row.slice(Math.max(0, start - 3), start).map(item => item.text).join(' '));
+          const merchantValue = receiptMerchantPrefix.test(prefix);
+          const phone = identifierPatterns.find(([category, pattern]) => category === 'phone' && pattern.test(compact));
+          if (!merchantValue && phone) { add('phone', items); break; }
+          if (!merchantValue && /^\d{13,19}$/.test(compact) && isLuhn(compact)) { add('card_number', items); break; }
+          if (items.length === 1 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(compact)) { add('email', items); break; }
+          continue;
+        }
         const match = identifierPatterns.find(([category, pattern]) => (!receipt || category === 'phone')
           && pattern.test(documentGuess === 'ID' && category === 'drivers_license' ? compact.replace(/[.]/g, '-') : compact));
         if (match) { add(match[0], items); break; }

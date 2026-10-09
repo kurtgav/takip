@@ -8,6 +8,7 @@ import { useBlobUrl } from './useBlobUrl';
 import { PhotoEditor } from './PhotoEditor';
 import { WatermarkEditor } from './WatermarkEditor';
 import { applyCoverPreset, type CoverPreset } from '../pipeline/document';
+import { canShareFile } from '../platform';
 
 interface Props { result: ScanOutput; photo: LocalPhoto; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void; onSetup: () => void }
 type Stage = 'cover' | 'watermark' | 'save';
@@ -60,7 +61,7 @@ export function Review({ result, photo, summary, onReset, onSetup }: Props) {
   async function share() {
     if (!ready || !reviewed || invalidWatermark) return;
     const file = new File([rendered.blob], 'takip-safe-copy.png', { type: 'image/png' }); setShareMessage('');
-    if (!navigator.share || !navigator.canShare?.({ files: [file] })) { save(); return; }
+    if (!canShareFile(file)) { save(); return; }
     setSharing(true);
     try { await navigator.share({ files: [file], title: 'TAKIP safe copy' }); setSaved(true); }
     catch (error) { if (error instanceof DOMException && error.name === 'AbortError') setShareMessage('Share cancelled. Your covered copy is still here.'); else { downloadCopy(rendered.blob); setSaved(true); setShareMessage('Sharing was unavailable. Downloaded the covered copy instead.'); } }

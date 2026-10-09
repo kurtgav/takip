@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { continueToSave, continueToWatermark, enableAutomaticChecks, samplePhoto } from './sample';
+import { chooseManualMode, continueToSave, continueToWatermark, enableAutomaticChecks, samplePhoto } from './sample';
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -35,6 +35,38 @@ test('watermark appears in flattened export and unsupported sharing downloads', 
   }, bytes.toString('base64'));
   expect(changed).toBeGreaterThan(100);
   await expect(page.getByText('Location data removed. Original stays on your device.')).toBeVisible();
+});
+
+test('a failed share capability probe downloads without calling native share', async ({ page }) => {
+  test.setTimeout(300_000);
+  await page.addInitScript(() => {
+    const counters = { probes: 0, shares: 0 };
+    Object.defineProperty(window, '__takipShareCounters', { value: counters, configurable: true });
+    Object.defineProperty(navigator, 'canShare', {
+      value: () => { counters.probes++; throw new DOMException('Synthetic share capability failure', 'NotAllowedError'); },
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'share', {
+      value: async () => { counters.shares++; throw new Error('Native share must not be called after a failed probe'); },
+      configurable: true,
+    });
+  });
+  await page.goto('/');
+  await chooseManualMode(page);
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({
+    name: 'sample-share-probe.png', mimeType: 'image/png', buffer: await samplePhoto(page),
+  });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Add cover', exact: true }).click();
+  await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
+  await continueToSave(page);
+  await page.getByRole('checkbox', { name: /I checked the photo/ }).check();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Share safe copy', exact: true }).click();
+  expect((await download).suggestedFilename()).toBe('takip-safe-copy.png');
+  expect(await page.evaluate(() => (window as typeof window & {
+    __takipShareCounters: { probes: number; shares: number };
+  }).__takipShareCounters)).toEqual({ probes: 1, shares: 0 });
 });
 
 test('native share receives only the flattened PNG and cancellation is not success', async ({ page }) => {

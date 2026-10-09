@@ -8,6 +8,8 @@ Built for AppBuildersPH Hackathon 2026, Local AI theme. This is a browser PWA, n
 
 Node 24 and npm required. All committed files are below 95 MB.
 
+Dependency lifecycle scripts are disabled by the committed `.npmrc`. The app uses packaged browser runtimes and prebuilt build-tool binaries; no dependency install script is required. Explicit project commands below still run.
+
 ```sh
 npm ci
 npm run assets
@@ -32,7 +34,7 @@ Setup times out stalled transfers rather than healthy downloads that exceed two 
 
 Live PWA: **https://kurtgav.github.io/takip/** (GitHub Pages over HTTPS — required for service worker and phone install). Source: https://github.com/kurtgav/takip.
 
-`.github/workflows/pages.yml` rebuilds and republishes `dist/` on every push to `master`, and on manual *Run workflow*. The job is `npm ci` + `npm run build` only, then `actions/configure-pages` / `upload-pages-artifact` / `deploy-pages`; it needs no secrets.
+`.github/workflows/pages.yml` verifies and republishes `dist/` on every push to `master`, and on manual *Run workflow*. Installation, dependency audit, lint, types, unit tests and core Chromium/WebKit browser tests must pass before the Pages build can deploy. Actions are pinned to reviewed commits, checkout does not retain credentials, and only the deployment job receives Pages write/OIDC permissions. The optional real-LLM test requires a compatible GPU and is verified on the release workstation; it is excluded only from the GPU-less hosted runner. No application secrets are required.
 
 Two rules keep that deploy working:
 
@@ -51,6 +53,8 @@ npm run test:browser
 
 Browser tests launch their own production preview, so stop any other server using port 4173 first. Tests generate clearly labeled SAMPLE images; screenshots/downloads go to the OS temporary directory. `eval/private/` is ignored and must never be committed.
 
+If a release fails live verification, revert its release commit and push to `master`; the same verification gates rebuild and redeploy the previous behavior. There is no server database or stored user-photo migration to undo. Existing tabs must close before the replacement service worker activates.
+
 The real LLM browser test needs a working WebGPU device and full Playwright Chromium. Its GPU launch flags were verified on this Windows/NVIDIA test machine; software-only CI cannot prove real LLM inference. Core browser tests use headless Chromium and verify the standard-summary path. WebKit tests cover offline reopening and manual photo editing/export without OffscreenCanvas. Desktop WebKit testing does not establish physical iPhone/Safari automatic-processing compatibility.
 
 ## What runs locally
@@ -61,7 +65,7 @@ The real LLM browser test needs a working WebGPU device and full Playwright Chro
 - ZXing finds QR codes and linear barcodes in a worker.
 - Category-based risk rules, review, solid covers, diagonal recipient/purpose/date watermark and PNG export run locally.
 - Optional Qwen runs in a separate WebGPU worker. It receives only validated category identifiers, selects permitted risk/review wording, and returns at most three sentences with the actual category list. Invalid output falls back to a template. Raw OCR text, photos and watermark fields never reach the LLM.
-- Share sends only the flattened PNG to the browser's native share sheet; unsupported sharing downloads it instead. Cancelling the sheet leaves the review open.
+- Share sends only the flattened PNG to the browser's native share sheet; unsupported sharing or a failed capability check downloads it instead. Cancelling the sheet leaves the review open.
 - Geometry-aware labels cover full names, multiline addresses, ID numbers, contextual dates, both passport MRZ rows, and estimated signature areas. Recognized Philippine passports also get an estimated cover over the ghost portrait/microprint area, anchored by the passport number and both MRZ rows. Receipt rules distinguish merchant metadata from customer/payment details; generic named-entity inference is skipped for recognized receipts. Estimated regions require manual review.
 - A conservative document guess labels ID, receipt, chat or transfer clues; uncertain cases say Unknown. Seller verification leaves names/faces visible while retaining manual covers; Cover all restores coverage. Coverage changes do not lower the original exposure rating. **Remove** dismisses an incorrect detection and recalculates the assessment. Incomplete checks or poor OCR show **Needs review**; manual mode shows **Not assessed**.
 - Canvas re-encoding discards original metadata. Covers are opaque pixels in the exported image, not removable editor layers.
@@ -88,7 +92,7 @@ Exact installed dependency versions are pinned in `package-lock.json`; local ass
 | QR/barcode | zxing-wasm 3.1.5 local reader WASM | [ZXing WASM](https://github.com/Sec-ant/zxing-wasm), MIT wrapper; ZXing-C++ Apache-2.0 |
 | Summary | WebLLM 0.2.85; `mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC`, revision `32ff081fe7e4dfe4ffb167b94c66fdf11e02b8ad`; Qwen2 0.5B q4f16_1 cs1k WebGPU WASM v0_2_84 | [MLC model](https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC), derived from [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct), Apache-2.0 base; WebLLM Apache-2.0 |
 
-NER uses English CoNLL entity labels, not a purpose-trained Philippine identity model. Latin-script Filipino labels are handled with rules. PH number patterns are heuristics; ambiguous long numbers are covered conservatively. Reference numbers are initially uncovered and can be covered during review. QR codes conservatively score High without a document classifier. Risk is shown for the original image, not a guarantee that the edited copy is safe.
+NER uses English CoNLL entity labels, not a purpose-trained Philippine identity model. Latin-script Filipino labels are handled with rules. PH number patterns are heuristics; ambiguous long numbers are covered conservatively. Reference numbers are initially uncovered and can be covered during review. QR codes conservatively score High without a document classifier. Unknown linear barcodes score Medium because their encoded contents have not been assessed. Receipt merchant-number suppression does not suppress separate validated contact or payment details on the same row. Risk is shown for the original image, not a guarantee that the edited copy is safe.
 
 Transformers.js 4.3.1 failed actual browser token classification; 3.8.1 is the verified fallback. Its unused Node-only sharp and onnxruntime-node dependencies are overridden to patched versions. See `DECISIONS.md` for reproduced failures and choices.
 

@@ -296,6 +296,28 @@ test('receipt customer identity, payment card, account, phone and email stay pro
   assert.equal(riskLevel(detections.map(item => item.category)), 'High');
 });
 
+test('receipt merchant rows still protect validated customer contact and card details', () => {
+  const detections = detectPatterns(words([
+    ['Email', 'lina@example.test', 'Order', '123'],
+    ['Phone', '0917-234-5678', 'Terminal', '7'],
+    ['Order', '123', '4111', '1111', '1111', '1111'],
+    ['TIN', '123-456-789-000'], ['Reference', '1234567890123456'],
+  ]), 'Receipt');
+  assert.deepEqual(detections.map(({ category, x, width }) => [category, x, width]), [
+    ['email', 90, 80], ['phone', 90, 80], ['card_number', 180, 350],
+  ]);
+});
+
+test('receipt merchant labels suppress phone-shaped merchant values', () => {
+  const detections = detectPatterns(words([
+    ['Terminal', '0917-234-5678'], ['Order', '0917-234-5678'], ['Reference', '0917-234-5678'],
+    ['Order', 'No.', '0917-234-5678'], ['Terminal', 'ID', '0917-234-5678'],
+    ['Reference', 'Number', '4111111111111111'], ['Receipt', 'No.', '4111111111111111'],
+    ['Invoice', 'Number', '4111111111111111'], ['Transaction', 'ID', '4111111111111111'],
+  ]), 'Receipt');
+  assert.deepEqual(detections, []);
+});
+
 test('masked card on receipt is still sensitive while generic long numbers are suppressed', () => {
   const detections = detectPatterns(words([['Card', '****', '****', '****', '1234'], ['1234567890123456']]), 'Receipt');
   assert.deepEqual(detections.map(({ category, width }) => [category, width]), [['card_number', 350]]);

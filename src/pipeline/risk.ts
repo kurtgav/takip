@@ -15,7 +15,7 @@ export function riskLevel(categories: Category[]): RiskLevel {
   const has = (category: Category) => unique.includes(category);
   if (unique.some((category) => directHighRisk.has(category))
     || (has('full_name') && (has('birthday') || has('address') || has('signature')))) return 'High';
-  if (has('address') || has('digits') || has('signature')
+  if (has('address') || has('digits') || has('signature') || has('barcode')
     || (has('full_name') && (has('phone') || has('face')))
     || unique.length > 1) return 'Medium';
   return 'Low';
