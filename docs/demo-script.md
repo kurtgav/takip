@@ -1,86 +1,102 @@
-# TAKIP — Demo Script (5-minute live pitch + ~1-minute video)
+# TAKIP — Live demo script (5 min) + video shot list (~1 min)
 
-> Owner: Hermes (docs) · Session 1, updated Session 2 (2026-10-09 16:46 Asia/Manila)
-> Structure follows PRD §16: **Part 1 = live pitch (5 min, mall venue)**, **Part 2 = video shot
-> list (~1 min)**, **Part 3 = demo-safety rules**. Every beat is tagged **[BUILT]** or
-> **[NOT BUILT YET]** so nobody narrates a feature the app cannot show.
-> Re-verify against the running app before you rehearse.
+> Owner: Hermes · PRD §16.1–§16.3. Updated Session 3 (2026-10-09 18:5x) — the app is **built**
+> (F1–F16); every on-screen element below exists in the real app. Say only what the run shows,
+> and quote numbers only from `eval/results.md`.
+>
+> **Golden rule of this script:** speak the *spoken* lines, do the *on-screen* actions, in the
+> listed order. If something hasn't been rehearsed on the actual venue phone yet, use its fallback
+> line — do not narrate a result you haven't seen.
 
-## Build status (honest)
+## Pre-flight (before you walk up)
 
-Image input, on-device OCR, §7 pattern rules, solid covering, face detection, QR/barcode, NER
-and box merge are **implemented and verified**. The review UI (before/after, risk banner,
-chips, touch-up), export with metadata stripping, the **live** network counter, the local-LLM
-summary and the watermark are **not built yet**. `eval/results.md` does not exist, so quote
-**no** scan-time, recall or "0 requests" figure on stage or in the video. Where a PRD beat
-depends on an unbuilt feature, the beat below says how to handle it today.
+- Phone: **TAM build / highest brightness**, **Do Not Disturb on**, **auto-rotate off**, screen
+  timeout **off** (or 10 min), notifications cleared.
+- App already **loaded once online** and showing **Ready offline**; the offline photo buttons are
+  enabled. Smart-summary model downloaded **only if** you're showing the local-LLM line.
+- **SAMPLE** test card in hand (made-up details, clearly labelled, not a replica of a real ID).
+- **Backup image** loaded in the gallery in case venue lighting defeats the camera (PRD §16.3).
+- Second device (if any) showing `eval/results.md` for the 3:15–4:30 proof beat.
+- If the phone has **passed** the offline rehearsal, plan to go airplane mode live. If it has
+  **not**, keep the live airplane-mode toggle **out** of the pitch and use it only as a stated fact
+  (fallback lines below) — a live toggle that fails on stage costs you the beat.
 
----
+## Live pitch — 5:00 (mall venue)
 
-# PART 1 — Live pitch (5 minutes, mall venue)  [PRD §16.1]
+### 0:00–0:30 — Hook
+**Say:** "A seller asks for your ID. You send it. Then a week later — where is that photo now?
+Who has it? TAKIP fixes that before you tap send."
 
-Read the **Spoken** column aloud. The **On-screen** column is what the audience sees.
+### 0:30–0:45 — It runs offline
+**Do:** (if rehearsed) pull down the Control Centre, **turn Airplane Mode ON**, hold the phone up.
+Point to the **"On-device · 0 uploads"** badge and the **live network counter**.
+**Say:** "Airplane mode. Watch the counter — it stays at **zero requests** while it works. Nothing
+leaves this phone."
+**Fallback (if not rehearsed live):** keep airplane mode off and **say:** "This runs
+offline — in our test suite a fresh reload, a full scan and an export ran with **zero network
+requests and zero blocked attempts**. I'll show you the app." (then continue; don't toggle.)
 
-| Time | Beat | Spoken line (exact) | On-screen action | State |
-|---|---|---|---|---|
-| 0:00–0:30 | **Hook** | *"A seller asks for your ID. You send it. Where does it go next? Into a group chat. A folder. A stranger's phone. Today we make that photo safe — without sending it anywhere."* | Stand away from the screen; no slides. | **[BUILT]** (talk only) |
-| 0:30–0:45 | **It's offline** | *"Watch — I'll turn on airplane mode right now."* (turn it on) *"The models were downloaded once and now run from the phone itself. The photo never leaves this device."* | Toggle **airplane mode**; point at the **"On-device · 0 uploads"** badge. | **[PARTLY]** badge exists; **live counter NOT BUILT** — do not promise a moving counter; skip airplane mode if the offline flow isn't verified yet |
-| 0:45–2:15 | **Scan the SAMPLE card** | *"Here's our SAMPLE card — made-up name, made-up number, clearly fake. Photo… and the app reads it on the device."* | Take/Choose Photo → **SAMPLE** (fake) card → progress → **covered preview** → list of detected items. | **[BUILT]** capture + covering + list; **NOT BUILT:** the 🔴 High risk banner, removable chips, watermarking, and export — do **not** perform those steps |
-| 2:15–3:15 | **Screenshot case** | *"Now a normal screenshot — the kind people forward every day. It's not an ID, but it still has a phone number, an address, an account number."* | Run the app on a chat/transfer screenshot with a **fake** number → the numbers come back covered. | **[BUILT]** pattern rules + safety net |
-| 3:15–4:30 | **Proof** | *"Four models run on this phone: OCR, face detection, name/place recognition, and QR detection. Nothing is uploaded — the app has no server."* | Show the on-device model list. **Show real test results only from `eval/results.md`** — which does not exist yet, so describe honestly instead of quoting numbers. | **[BUILT]** for the models; **results numbers NOT AVAILABLE yet** |
-| 4:30–5:00 | **Close** | *"Privacy tools shouldn't need your data. TAKIP never touches the cloud. Blur before you share."* | End on the app or the title card. | **[BUILT]** |
+### 0:45–2:15 — SAMPLE ID card: the core flow (PRD §5 steps 1–6)
+**Do & say, in order:**
+1. Tap **Take Photo** / **Choose Photo** → "I photograph our SAMPLE card — made-up details, that's
+   the rule for a public demo."
+2. While **scanning** (progress: "Reading text… Finding faces… Checking sensitive info… Writing
+   summary…") **say:** "It's reading text, finding faces, and checking for sensitive info — all
+   on the phone."
+3. **Review screen** appears; tap the **before/after toggle** so the covers pop in, then back.
+   **Say:** "In one pass it covered the **name, birthday, address, ID number and the face**."
+4. Point to the **risk summary** (🔴 **High**, because it's a full ID). **Say:** "It tells you, in
+   plain English, what was exposed."
+5. Tap **Add watermark** → recipient `Angelica — apartment rental`, purpose `verification`,
+   date → tiled diagonal text appears. **Say:** "So this photo can only be used for one purpose,
+   by one person."
+6. Tick the **mandatory review** checkbox → tap **Save safe copy** (or **Share**).
+   **Say:** "What gets saved is the flat safe copy — **metadata stripped, no EXIF, no GPS** — and
+   the original pixels under those covers are gone."
 
-**If the summary / watermark / export land in time,** insert the PRD §16.1 step *"auto-covers →
-🔴 High risk summary → add watermark → export"* inside 0:45–2:15 and re-time the beats. Until
-then, do them for nobody — an unbuilt step is the one thing that sinks a live demo.
+### 2:15–3:15 — A screenshot, not an ID
+**Do:** open the **bank-transfer / e-wallet screenshot** (SAMPLE). Let it scan.
+**Say:** "Here it's not an ID — it's a GCash receipt. It covered the **phone number and account
+number**. The reference number it **left visible on purpose** — receipts need those — and you can
+cover it yourself if you want."
+(If you have a second sample: show a **chat screenshot** — name, phone, address — same story.)
 
----
+### 3:15–4:30 — Proof beat: models, offline split, real numbers
+**Do:** show `eval/results.md` on the second screen (or the "What runs locally" screen).
+**Say:** "Four AI models run **on this phone**: **Tesseract** for text, **MediaPipe** for faces,
+**Transformers.js** for names and addresses, and an optional **on-device language model** for the
+summary. They're downloaded **once**; after that it's **airplane-mode clean**.
+Our measured suite: **30 of 30 unit tests, 11 of 11 browser tests**, and a full
+scan-and-export with the network log at **zero**. What still needs the internet? **Only the first
+load.**"
+**Honesty line (say it before a judge asks):** "Recall and scan-time on real phones is our next
+measurement — we run the 30-photo set on-device; we report it exactly as measured, misses
+included."
 
-# PART 2 — Demo video (~1 minute)  [PRD §16.2]
+### 4:30–5:00 — Close
+**Say:** "Privacy tools shouldn't need your data. TAKIP never touches the cloud."
+**Do:** lower the phone; stop.
 
-PRD's target arc: *airplane mode on → photo → covers appear → risk summary → watermark → share →
-end card "All AI runs on your device."* Build-state mapping:
+## Video shot list (~1:00) — PRD §16.2
 
-| Shot | What to film | State | Fallback if unbuilt |
-|---|---|---|---|
-| 1 | Phone home → open TAKIP | **[BUILT]** | — |
-| 2 | Airplane mode on; camera on the "0 uploads" badge | **[PARTLY]** | Show the badge; don't claim a live counter; skip if offline isn't verified |
-| 3 | Take/Choose Photo → **SAMPLE** (fake) card | **[BUILT]** | — |
-| 4 | Progress messages → covered preview + detected-items list | **[BUILT]** | — |
-| 5 | Risk summary card (🔴 High) | **[NOT BUILT]** | **Omit** until it exists |
-| 6 | Add watermark → Share/Save with metadata stripped | **[NOT BUILT]** | **Omit** until it exists |
-| 7 | End card: **"All AI runs on your device."** | **[BUILT]** (title card) | — |
+Silent-friendly: every beat readable without sound; add captions in post.
 
-**Length:** keep ≤60s. If you must omit shots 5–6, the video becomes a ~45s "detect and cover"
-demonstration — that is honest and still strong; do **not** fake the missing beats.
+| Time | Shot | Notes |
+|---|---|---|
+| 0:00–0:06 | Phone held up, **Airplane Mode ON**, badge **"On-device · 0 uploads"** visible | If not rehearsed, show the badge + on-screen counter over "0 requests during processing" instead |
+| 0:06–0:16 | Camera → **SAMPLE** card fills frame → tap shutter | Card is clearly labelled SAMPLE |
+| 0:16–0:30 | Scanning progress → **review screen**; before/after toggle reveals **name, DOB, address, ID no., face** covered | Hold on the 🔴 **High** risk summary |
+| 0:30–0:40 | Add **watermark** → tiled text appears | Recipient + purpose + date |
+| 0:40–0:50 | **Save / Share** the safe copy | If native share sheet untested, show **Save safe copy** + the flattened PNG; caption "metadata stripped" |
+| 0:50–1:00 | **End card**: "All AI runs on your device." + **TAKIP** | Also add "0 uploads" for reinforcement |
 
-### Captions to burn in (they double as accessibility)
-- 0:02 "Runs on your phone."
-- 0:08 "Photo never leaves the device."
-- 0:20 "Finds IDs, faces, numbers, QR codes."
-- 0:35 "Covers them in solid black."
-- 0:50 "TAKIP — Blur before you share."
+## Demo safety rules (PRD §16.3) — non-negotiable
 
----
-
-# PART 3 — Demo-safety rules  [PRD §16.3]
-
-- **Never** show a real, uncovered ID on screen or in the video — not even briefly, not even
-  "just to show it works."
-- **Use only the clearly labeled SAMPLE card** with made-up details (fake name, fake
-  0000-0000-0000-0000 number, fake address). A teammate's drawn cartoon or a consenting
-  teammate's photo is fine; a real document is not.
-- **Have a pre-loaded backup image** in case the venue camera struggles with the lighting —
-  the "Choose Photo" path is the backup.
-- **Airplane mode / "0 uploads"** may only be shown once the offline flow has been verified in
-  the actual demo build; otherwise skip that beat rather than risk it.
-- **No metrics on stage** unless they come straight from `eval/results.md` (which does not
-  exist yet). Say "we'll publish the numbers, including what we miss" instead.
-- **Rehearse the tap sequence** on the exact demo device; venue Wi-Fi and lighting are
-  unreliable.
-
-## Do / Don't (whole demo)
-- **Do** show a real tap sequence — judges value a real app over polish.
-- **Don't** narrate any beat tagged NOT BUILT YET.
-- **Do** keep the live pitch inside 5 minutes; the hook earns the first 30 seconds.
-- **Do** end every privacy question back on: *the original never leaves the device.*
+- **Never** show a real, uncovered ID on screen or in the video.
+- Use **only** the clearly labelled **SAMPLE** card with made-up details.
+- Keep a **pre-loaded backup image** in case venue lighting defeats the camera.
+- Never quote a metric that isn't in `eval/results.md`. If it isn't measured, say
+  "not yet measured" — never estimate.
+- Airplane-mode toggle on stage **only** after the offline rehearsal has passed; otherwise show the
+  counter/badge and state the verified fact.
+- Rehearse **3/3** in the noisy venue before the run (PRD §12 demo-success metric).

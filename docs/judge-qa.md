@@ -1,107 +1,100 @@
 # TAKIP — Judge Q&A (the 12 hardest questions)
 
-> Owner: Hermes (docs) · Session 1, updated Session 2 (2026-10-09 16:46 Asia/Manila)
-> Mapped to the judging criteria: **Usefulness · Local AI · Execution · Innovation · Demo**.
-> Answers are **short and honest**. Where an answer depends on the built app, it names what
-> actually runs today; re-verify against `README.md` / `eval/results.md` before the pitch.
+> Owner: Hermes · Updated Session 3 (2026-10-09 18:5x) — answers reflect the **built** app
+> (F1–F16). Answer **short and honest**; when a number isn't measured yet, say "not yet measured" —
+> never estimate.
+> Tags map each answer to the PRD §14.1 judging criteria: **Problem & Usefulness (25%)**,
+> **Local AI Implementation (25%)**, **Technical Execution (20%)**, **Innovation (15%)**,
+> **Product & Demo Quality (15%)**.
 
-## Build status (honest)
+**Q1. "Isn't on-device AI just worse than a cloud API?"**
+*(Local AI Implementation · Technical Execution)*
+Worse on some tail cases, better where it matters here. We use four focused models — OCR, face
+detection, NER, and a small summary LLM — tuned to the narrow job of finding ID fields, not general
+vision. And cloud redaction is a contradiction: you'd upload the exact photo you're protecting.
+Local is the only design that keeps the promise. Where it's weaker (angled photos) we say so and
+ask the user to review — we don't hide it.
 
-As of **2026-10-09 16:46** the app is **partly built**: photo input, on-device OCR, §7 pattern
-rules, solid covering, MediaPipe face detection, ZXing QR/barcode, Transformers.js NER and box
-merge are implemented and were verified in isolated Chromium runs; risk scoring exists as a
-module with unit tests. **Not built yet:** the review UI (before/after, risk banner, chips,
-touch-up), export with metadata stripping, the **live** network counter, the local-LLM summary
-and the watermark. `eval/results.md` does not exist, so **no recall / scan-time / "0 requests"
-figure may be quoted anywhere yet.** When a feature below is not in the build, say "not in this
-build" rather than implying it works.
+**Q2. "What happens when it misses something?"**
+*(Technical Execution · Product & Demo Quality)*
+The review screen is **mandatory**: you tick "I reviewed the covers" before you can export, and you
+can **remove any cover or draw a new one**. The risk summary lists what was found so you can check
+it against the photo. We never auto-send; the model proposes, the human confirms.
 
----
+**Q3. "Why not just use the phone's blur tool?"**
+*(Problem & Usefulness · Innovation)*
+Manual blur is slow and miss-prone — people forget the back of the ID, the birthday, the QR code,
+or the phone number in a screenshot. TAKIP finds **every category in one pass** and keeps the rest
+of the photo readable. And our covers are **opaque and flattened** — light blur and thin scribbles
+can still be read.
 
-**Q1. If the AI runs on the device, how good can it be compared to a cloud model? — Local AI**
-> Good enough for the job, and the job is *detection*, not writing essays. Small models are
-> fine at OCR, face detection and pattern matching, which is most of what ID redaction needs.
-> The one place quality matters is the risk summary — and that's a short, templated sentence,
-> not open-ended reasoning. We trade a little accuracy for the thing that actually matters
-> here: the photo never leaves the phone. *(The NER model is integrated — a DistilBERT
-> token-classification model run through Transformers.js — but it is English-trained, so
-> Filipino names/addresses rely on label-proximity rules. Quote real recall only from
-> `eval/results.md` once it exists.)*
+**Q4. "Does local really matter, or is it a gimmick?"**
+*(Local AI Implementation · Innovation)*
+It's the whole point. The threat model is *untrusted intermediaries* — sellers, landlords, chat
+apps. A tool that uploads your ID to redact your ID has just created the leak. Running everything
+on-device also means it works with **no signal** and costs **nothing per use**.
 
-**Q2. What if the model misses something? — Usefulness / Execution**
-> We never claim 100%, and the PRD says so explicitly. The catches are: the pattern rules (a
-> safety-net rule covers *any* long unlabeled digit run), and a manual review step where the
-> user can look at every detection and add or remove covers. Real recall numbers, including
-> misses, will be in `eval/results.md`. *(The touch-up UI is **not in this build yet** — say so
-> if asked to demonstrate it live.)*
+**Q5. "How big are the models? Will it run on a normal phone?"**
+*(Technical Execution)*
+Text: **Tesseract.js 7.0.0** (LSTM, `eng`). Faces: **MediaPipe Tasks-Vision 1.1.0** (BlazeFace
+short-range, float16). Names/addresses: **Transformers.js 3.8.1** running DistilBERT-NER
+**int8-quantized**. Optional summary: **WebLLM 0.2.85** running **Qwen2.5-0.5B-Instruct** (q4f16)
+— only on WebGPU, and it falls back to a template if the device can't run it. Weights are cached
+once; the app works after that in airplane mode.
 
-**Q3. Why not just let people blur by hand? — Usefulness**
-> Because they forget. People miss the ID number on the back, the birthday, the QR code, the
-> phone number in a screenshot. Hand blurring is also often too light to be safe. TAKIP does
-> the boring, easy-to-forget parts automatically, then leaves the last check to the human.
+**Q6. "Show me there are really zero uploads."**
+*(Local AI Implementation · Product & Demo Quality)*
+*(Show the badge + live counter.)* The app counts **every network request made while processing**
+and shows it — during a full photo → scan → export it stays at **zero requests, zero blocked
+attempts**. In our automated suite a fresh **offline reload**, a full scan and an export all pass
+with that counter at zero. To be precise about what's verified: the offline flow is verified in our
+test suite; the on-stage **airplane-mode toggle** is shown once the venue phone passes rehearsal.
 
-**Q4. Is "local AI" actually necessary, or is it a gimmick? — Innovation / Local AI**
-> It's the whole point. The image a user is trying to *protect* is the same image a cloud tool
-> would have to *upload*. Sending your ID to a server to have it redacted is self-defeating.
-> Local isn't a feature bolted on here — it's the only correct architecture.
+**Q7. "Does it work on the phones real users have?"**
+*(Technical Execution · Product & Demo Quality)*
+It's a PWA — first load online, then offline. Core redaction is Chrome/Edge/Safari. The *optional*
+on-device LLM summary needs WebGPU and simply falls back to a template elsewhere. It's a vanilla
+phone web app; no install from a store. **Scan time on a mid-range phone is the next number we
+measure** — pending, not claimed.
 
-**Q5. Which models run locally, and how big are they? — Local AI**
-> Running today, all in the browser, all fetched once on first load and cached: **Tesseract.js
-> 7.0.0** for OCR, **MediaPipe `@mediapipe/tasks-vision` 1.1.0 + BlazeFace short-range** for
-> faces, **Transformers.js 3.8.1** with **`distilbert-NER-ONNX` (q8, ~66 MB)** for names and
-> places, and **ZXing-WASM 3.1.5** for QR/barcodes (not AI). A small **WebLLM / Qwen2.5-0.5B**
-> model is chosen for the plain-language summary but **is not integrated yet**. The exact list
-> that ships is in `README.md` — quote those, not this.
+**Q8. "What's actually new here?"**
+*(Innovation)*
+Local AI **as a pre-share privacy filter**, aimed at the one photo people are most afraid to leak —
+not another cloud vault. Three things together: automatic category detection, a **plain-language
+risk summary**, and an **anti-reuse watermark** that names the recipient and purpose.
 
-**Q6. How do you prove there are zero network requests? — Demo / Local AI**
-> The intended proof is two-fold: an in-app counter that stays at 0 during processing, and an
-> airplane-mode test where the whole flow still runs. **Be straight about the state:** the
-> "On-device · 0 uploads" badge exists, but the **live counter is not implemented yet**, and
-> the offline (airplane-mode) flow has not been verified. So prove what you can — the models
-> are bundled locally and loaded from local files — and do not assert a live zero-request
-> counter on stage until it is built.
+**Q9. "Your watermark and export — is that AI, or fake AI?"**
+*(Technical Execution)*
+Deterministic on purpose — the watermark and the flattened, metadata-free export don't need AI
+and shouldn't guess. The AI is where judgment is needed: what text is sensitive, which faces, which
+entities, and the wording of the summary.
 
-**Q7. Does it work on normal users' phones, not just the demo phone? — Execution**
-> Target is latest Chrome on Android and desktop. OCR, face detection, QR/barcode, NER,
-> pattern rules and covering all run **without** WebGPU. WebGPU is only needed for the optional
-> LLM summary. **Note the build state:** neither the LLM summary **nor** its template fallback
-> exists in the app yet, so there is simply no summary card today. Say that plainly instead of
-> promising a fallback you can't show.
+**Q10. "Will it catch Filipino names, addresses and BHW-style formats?"**
+*(Technical Execution · Problem & Usefulness)*
+Yes, within limits. We combine the AI with **label proximity** ("Pangalan", "Petsa ng Kapanganakan",
+"Tirahan", "Address") and PH-specific patterns: PhilSys 16-digit, TIN, SSS, UMID/CRN, PhilHealth,
+Pag-IBIG MID, driver's license, `09XX` mobiles. A **safety net** covers any unlabelled run of 9+
+digits. Formats are heuristics — we verify them on our own test set and report misses.
 
-**Q8. What's genuinely new here that other apps don't do? — Innovation**
-> The combination: a pre-share privacy filter that (1) runs fully on-device, (2) explains the
-> risk in plain language instead of just blurring, and (3) adds a purpose-bound watermark to
-> discourage reuse. Redaction tools exist; an offline, explainable, anti-reuse filter built
-> for the "someone asked for my ID" moment is the novel part. *(Items 2 and 3 are design goals
-> that are not in this build yet — present them as the direction, not as shipped.)*
+**Q11. "Is the live demo real, or prerecorded?"**
+*(Product & Demo Quality)*
+Live, on the phone — that's the rule (PRD §14.2). We photograph the **SAMPLE** card in the room.
+Airplane mode is toggled live **only after** it passes the venue rehearsal; until then we show the
+on-device badge and counter. We keep a backup image only for camera/lighting failure, and we say so.
 
-**Q9. Where's the AI in the watermark and export? — Execution**
-> Not every step is AI — and that's fine. The AI is OCR, face detection and entity recognition.
-> Watermarking, covering and metadata-stripping are deterministic image processing, which is
-> exactly what you want there: predictable and safe. *(Watermark and metadata-stripping are
-> still to be built; the covering is done.)*
+**Q12. "Did AI write this? Which tools?"**
+*(Rules compliance — PRD §14.2)*
+Disclosed openly: **OpenAI Codex** as the coding agent and the **Hermes agent** running **DeepSeek
+V4.1 Flash** for content, testing and documentation. Neither is part of the product at runtime —
+every model that runs is open-source and listed in the README. The product was built during the
+hackathon; test data is team-made; no fake benchmarks.
 
-**Q10. How do you handle Filipino names and addresses that English models get wrong? — Local AI / Execution**
-> NER alone won't catch everything — it is an English-trained model — so it is backed by
-> **label proximity** ("Pangalan", "Tirahan", "Last Name", "Address") and address keywords
-> (Brgy., St., City, Province), plus the digit safety-net for numbers. That hybrid is
-> deliberately designed for PH documents.
+## Coverage check — every criterion is exercised
 
-**Q11. Is the demo real, or pre-recorded? — Demo**
-> Live, on a phone. We keep a pre-loaded backup image only in case the venue camera struggles
-> with the lighting — the flow itself is real every time. No fake results: `eval/results.md`
-> will include what we got wrong.
-
-**Q12. Did AI write this? — Execution**
-> Yes, and we disclose it (PRD §15). Codex wrote the application code; a Hermes agent on
-> DeepSeek V4.1 Flash wrote the docs, test plan and this Q&A; an orchestrator script ran the
-> agents and the git checkpoints. None of them is part of the product at runtime — the shipped
-> app uses only the open-source models running on your device.
-
----
-
-### Quick do/don't for the judges' round
-- **Do** say "not in this build yet" when unsure. Honesty scores; bluffing loses.
-- **Don't** quote a metric you can't point to in `eval/results.md` (it does not exist yet).
-- **Don't** demo the touch-up, watermark, export, summary or network counter until they exist.
-- **Do** steer every privacy question back to: *the original never leaves the device.*
+| Judging criteria (PRD §14.1) | Weight | Questions |
+|---|---|---|
+| Problem & Usefulness | 25% | Q3, Q10 |
+| Local AI Implementation | 25% | Q1, Q4, Q6 |
+| Technical Execution | 20% | Q1, Q2, Q5, Q7, Q9, Q10 |
+| Innovation | 15% | Q3, Q4, Q8 |
+| Product & Demo Quality | 15% | Q2, Q6, Q7, Q11 |

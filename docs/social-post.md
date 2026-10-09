@@ -1,51 +1,50 @@
-# TAKIP — Social Post(s) for the #AppBuildersPH campaign
+# TAKIP — Social post(s) for the #AppBuildersPH campaign
 
-> Owner: Hermes (docs) · Session 1, updated Session 2 (2026-10-09 16:46 Asia/Manila)
+> Owner: Hermes (docs) · Session 1 → **Session 3 (2026-10-09 18:5x Asia/Manila)**.
 > Rules: post the **video**, tag **Devin / Cognition**, include **#AppBuildersPH**.
-
-## Build status (honest — read first)
-As of **2026-10-09 16:46** the app is **partly built**: on-device OCR, pattern rules, solid
-covering, face / QR-barcode / NER detection all work; the review UI, touch-up, risk banner,
-export, live network counter, local-LLM summary and watermark are **not built yet**, and
-`eval/results.md` does not exist. **Post only what the video actually shows.** If the video
-skips a beat (see `demo-script.md`), the post must skip it too. When in doubt, cut the claim.
+> Post only what the video actually shows. As of this session the **full flow is built and
+> verified** (detect → review → covers → risk summary → watermark → flattened, metadata-free
+> export → share/download, offline). Numbers below come from `eval/results.md` only.
 
 ---
 
 ## Option 1 — X (main post)
 
-> Your ID photo? It's leaking more than you think. 🔒
-> TAKIP finds your ID number, birthday, face & QR — and covers them before you share.
-> 100% on-device. Works in airplane mode. Your photo never leaves your phone. 📵
+> Your ID photo leaks more than you think. 🔒
+> TAKIP finds the ID number, birthday, face, address and QR — and covers them **before** you
+> share. Adds a "for X verification only" watermark and strips the photo's hidden metadata.
+> 100% on-device. Airplane-mode clean. Your photo never leaves your phone. 📵
 > @devingo #AppBuildersPH
-
-*(This is the "detection + covering" story, which the build already does. Nothing here claims
-the summary, watermark or export.)*
 
 ## Option 2 — X (builder-story angle)
 
 > We built TAKIP for @devingo #AppBuildersPH: an on-device privacy filter.
-> OCR, face, QR & name detection all run in the browser. No cloud. No uploads.
-> Blur before you share. 🛡️
+> OCR, face, QR & name detection + a tiny local LLM — all in the browser. No cloud. No uploads.
+> Verified in our suite: a full scan-and-export with **zero** network requests.
+> Cover before you share. 🛡️
 
 ## Option 3 — LinkedIn (longer)
 
-> **TAKIP — "Blur before you share."**
+> **TAKIP — "Cover before you share."**
 >
-> People hand over photos of their IDs every day. Those photos carry an ID number, a birthday,
-> an address, a face, and often a QR code.
+> People hand over photos of their IDs every day. Every one of them carries an ID number, a
+> birthday, an address, a face — and often a QR code that holds the whole record.
 >
-> TAKIP is a photo-privacy filter that finds those sensitive details and covers them in solid
-> black — **entirely on your own device.** The image is never uploaded. After the one-time model
-> download, the core flow works in airplane mode.
+> TAKIP is a photo-privacy filter that finds those details and covers them in solid black,
+> **entirely on your own device.** You review the automatic covers, add any it missed, drop in a
+> recipient/purpose watermark, and export a flattened PNG with the original metadata removed —
+> no EXIF, no GPS.
 >
-> Built with React, TypeScript & Vite. On-device AI: Tesseract.js (OCR), MediaPipe (faces),
-> Transformers.js (names/places), ZXing (QR). Built for the @Devin / @Cognition
-> #AppBuildersPH builder challenge.
+> The image is never uploaded. Everything runs in the browser: OCR, face detection, name/address
+> recognition, QR/barcode reading, the risk rules, the covers and the export. After the one-time
+> model download it all works in airplane mode, and the in-app counter shows **0 requests** while
+> it processes.
 >
-> **Blur before you share.**
+> Built with React, TypeScript & Vite, on-device AI: Tesseract.js (OCR), MediaPipe (faces),
+> Transformers.js (names/places), ZXing (QR) and an optional local Qwen model for the plain-English
+> risk summary. Built for the @Devin / @Cognition **#AppBuildersPH** builder challenge.
 >
-> *(Add a line with real numbers only after `eval/results.md` exists — never invent them.)*
+> **Cover before you share.**
 
 ---
 
@@ -55,13 +54,14 @@ the summary, watermark or export.)*
 
 ## Do / Don't
 - **Do** post the real video; a real demo beats a promise.
-- **Don't** mention the summary, watermark, export, live network counter or any scan-time/
-  recall number until those exist and `eval/results.md` backs them.
-- **Don't** use any real personal data in the screenshots you post.
-- **Do** keep the main post free of claims you can't show in the video.
+- **Do** keep every claim to what the video shows and what `eval/results.md` measured.
+- **Don't** quote recall, false-cover, scan-time or phone-compatibility numbers — those are
+  **not measured yet**. "Zero requests" is measured (automated suite); phrase it as "in our tests".
+- **Don't** use any real personal data in the screenshots you post — SAMPLE card only.
 
 ## Pre-post checklist
-- [ ] Video recorded per `docs/demo-script.md` (only BUILT beats).
+- [ ] Video recorded per `docs/demo-script.md` (SAMPLE content only).
 - [ ] No real personal data visible anywhere.
 - [ ] Tag Devin/Cognition + `#AppBuildersPH`.
 - [ ] Text matches the video — nothing extra promised.
+- [ ] Any number quoted traces to `eval/results.md`.
