@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enableAutomaticChecks, expandDetails, samplePhoto } from './sample';
+import { chooseManualMode, enableAutomaticChecks, expandDetails, samplePhoto } from './sample';
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -61,4 +61,43 @@ test('automatic-check failure keeps the photo available for manual covering', as
   await page.getByRole('button', { name: 'Add cover', exact: true }).click();
   await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
   await expect(page.locator('[data-category="manual"]')).toHaveCount(1);
+});
+
+test('first-run manual result can close the photo and return to explicit setup', async ({ page, context }) => {
+  test.setTimeout(300_000);
+  const requests: string[] = [];
+  context.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
+  await page.goto('/');
+  await chooseManualMode(page);
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({
+    name: 'sample-recovery.png', mimeType: 'image/png', buffer: await samplePhoto(page),
+  });
+  await expect(page.getByText('Not assessed', { exact: true })).toBeVisible({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Close photo and set up checks', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Cover before you share.' })).toBeVisible();
+  await expect(page.getByText('Not assessed', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Download automatic checks', exact: true })).toBeVisible();
+  const requestsAfterRecovery = requests.length;
+  await page.waitForTimeout(250);
+  expect(requests).toHaveLength(requestsAfterRecovery);
+});
+
+test('missing saved tools return to setup before opening the photo', async ({ page }) => {
+  await page.goto('/');
+  await enableAutomaticChecks(page);
+  const sample = await samplePhoto(page);
+  await page.evaluate(async () => {
+    const name = (await caches.keys()).find(name => name.startsWith('takip-core-'))!;
+    await (await caches.open(name)).delete('models/face.tflite');
+  });
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({
+    name: 'sample-missing-tools.png', mimeType: 'image/png', buffer: sample,
+  });
+  await expect(page.getByRole('alert')).toContainText('Automatic checks are no longer saved on this device.');
+  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Download automatic checks', exact: true })).toBeEnabled();
+  await expect(page.getByText('Not assessed', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('img', { name: 'Photo with permanent covers preview' })).toHaveCount(0);
+  await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
 });

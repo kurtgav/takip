@@ -1,5 +1,5 @@
 import { expect, test, webkit, type Route } from '@playwright/test';
-import { continueToSave, enableAutomaticChecks, expectRequestsCached, samplePhoto } from './sample';
+import { chooseManualMode, continueToSave, enableAutomaticChecks, expectRequestsCached, samplePhoto } from './sample';
 
 function isToolRequest(requestUrl: string): boolean {
   const pathname = new URL(requestUrl).pathname;
@@ -20,11 +20,10 @@ test('automatic checks report failed downloads and retry reuses completed files'
   });
   await page.goto('/');
   const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
-  await expect(choose).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Download automatic checks', exact: true }).click();
   await expect(page.getByText(/Saving local tools: file/)).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('HTTP 503', { timeout: 120_000 });
-  await expect(choose).toBeEnabled();
+  await expect(choose).toBeDisabled();
   const completed = await page.evaluate(async () => {
     const name = (await caches.keys()).find(name => name.startsWith('takip-core-'));
     if (!name) return [];
@@ -35,8 +34,13 @@ test('automatic checks report failed downloads and retry reuses completed files'
   fetched.length = 0;
   failModel = false;
   await page.getByRole('button', { name: 'Download automatic checks', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Automatic checks ready offline', exact: true })).toBeVisible({ timeout: 240_000 });
+  await expect(page.getByText('Automatic checks ready offline', { exact: true })).toBeVisible({ timeout: 240_000 });
   expect(fetched.filter(url => completed.includes(url))).toEqual([]);
+  await expect(page.getByText('Editor and checks ready offline', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Use manual covers instead', exact: true }).click();
+  const useAutomatic = page.getByRole('button', { name: 'Use automatic checks', exact: true });
+  await expect(useAutomatic).toBeVisible();
+  await useAutomatic.click();
   await expect(page.getByText('Editor and checks ready offline', { exact: true })).toBeVisible();
 });
 
@@ -135,13 +139,11 @@ test('WebKit reloads offline and exports a manually covered photo', async ({ bas
     const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
     await page.goto('/');
-    const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
-    await expect(choose).toBeEnabled({ timeout: 120_000 });
-    await expect(page.getByText('Manual editor ready offline', { exact: true })).toBeVisible();
+    await chooseManualMode(page);
     const sample = await samplePhoto(page);
     await context.setOffline(true);
     await page.reload();
-    await expect(choose).toBeEnabled({ timeout: 120_000 });
+    await chooseManualMode(page);
     const requests: string[] = [];
     context.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
     await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: sample });
@@ -165,15 +167,13 @@ test('manual editor starts without heavy requests and edits offline', async ({ p
   const requests: string[] = [];
   context.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
   await page.goto('/');
-  const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
-  await expect(choose).toBeEnabled({ timeout: 120_000 });
-  await expect(page.getByText('Manual editor ready offline', { exact: true })).toBeVisible();
+  await chooseManualMode(page);
   expect(requests.filter(isToolRequest)).toEqual([]);
 
   const sample = await samplePhoto(page);
   await context.setOffline(true);
   await page.reload();
-  await expect(choose).toBeEnabled({ timeout: 120_000 });
+  await chooseManualMode(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample-manual.png', mimeType: 'image/png', buffer: sample });
   await expect(page.getByText('Not assessed', { exact: true })).toBeVisible({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Add cover', exact: true }).click();
@@ -206,6 +206,6 @@ test('cancelled automatic-check download can retry from saved files', async ({ p
   await page.getByRole('button', { name: 'Cancel download', exact: true }).click();
   await heldRoute?.abort('aborted').catch(() => {});
   await expect(page.getByRole('alert')).toContainText('Tool download cancelled', { timeout: 30_000 });
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeDisabled();
   await enableAutomaticChecks(page);
 });

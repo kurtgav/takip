@@ -17,6 +17,7 @@ export function App() {
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
   const [automatic, setAutomatic] = useState(false);
+  const [manualChosen, setManualChosen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('Saving the offline editor…');
@@ -39,18 +40,22 @@ export function App() {
     navigator.serviceWorker?.addEventListener('message', count);
     void prepareOffline(text => { if (current) setProgress(text); }).then(async () => {
       if (!current) return;
-      setReady(true);
       const available = await toolsReady();
-      if (current) setAutomatic(available);
+      if (current) { setAutomatic(available); setReady(true); }
     }).catch(error => { if (current) setError(error.message); });
     return () => { current = false; navigator.serviceWorker?.removeEventListener('message', count); };
   }, [attempt]);
   async function select(file?: File) {
-    if (!file || !ready || busy || downloading || smartLoading) return;
+    if (!file || !ready || (!automatic && !manualChosen) || busy || downloading || smartLoading) return;
     const problem = validatePhoto(file);
     if (problem) { setError(problem); return; }
     setError(''); setBusy(true); setResult(undefined); setSummary(undefined); setProgress('Opening your photo…');
     try {
+      if (!manualChosen && !await toolsReady()) {
+        setAutomatic(false);
+        setError('Automatic checks are no longer saved on this device. Download them again, or choose manual covers.');
+        return;
+      }
       setNetwork(await processingNetwork('PROCESS_START'));
       const local = await LocalPhoto.open(file); photo.current = local; setScanImage(local.original);
       let output: ScanOutput = {
@@ -58,7 +63,7 @@ export function App() {
         detections: [], elapsedMs: 0, documentGuess: 'Unknown', analysisStatus: 'manual',
         warnings: ['Manual mode: no automatic checks ran. Add covers over every detail you want to hide.'],
       };
-      if (automatic) {
+      if (automatic && !manualChosen) {
         let client: Pipeline | undefined;
         try {
           client = new Pipeline(); pipeline.current = client; client.onProgress = setProgress;
@@ -77,15 +82,17 @@ export function App() {
     } finally { setBusy(false); setScanImage(undefined); }
   }
   function retry() { setError(''); setReady(false); setProgress('Saving the offline editor…'); setAttempt(value => value + 1); }
-  async function reset() {
+  async function reset(setup = false) {
     setResult(undefined); setError(''); setBusy(true); photo.current?.dispose(); photo.current = null;
+    setSummary(undefined);
+    if (setup) setManualChosen(false);
     try { await processingNetwork('PROCESS_END'); }
     catch (error) { setReady(false); setError((error as Error).message); }
     finally { setBusy(false); }
   }
   async function prepareTools() {
     setDownloading(true); setError(''); setProgress('Checking saved automatic checks…');
-    try { await downloadTools(setProgress); setAutomatic(true); }
+    try { await downloadTools(setProgress); setAutomatic(true); setManualChosen(false); }
     catch (error) { setError((error as Error).message); }
     finally { setDownloading(false); }
   }
@@ -103,26 +110,29 @@ export function App() {
     <a className="skip-link" href="#photo-workspace">Skip to photo tools</a>
     <header className="app-header"><a className="wordmark" href={import.meta.env.BASE_URL} aria-label="TAKIP home"><span className="brand-mark" aria-hidden="true" />TAKIP</a><span className="badge"><Icon name="lock" />On-device · 0 uploads</span></header>
     <div className="local-status" role="status"><span className={ready ? 'is-ready' : ''}>{ready ? (automatic ? 'Editor and checks ready offline' : 'Manual editor ready offline') : 'Saving offline editor'}</span></div>
-    {result && photo.current ? <Review result={result} photo={photo.current} summary={summary} onReset={() => void reset()} /> : <>
+    {result && photo.current ? <Review result={result} photo={photo.current} summary={summary} onReset={() => void reset()} onSetup={() => void reset(true)} /> : <>
       <div className={busy ? 'scan-screen' : 'home-screen'} id="photo-workspace" tabIndex={-1}>
       <section className="intro">
-        {busy ? <div className="scan-art">{scanPreview ? <img src={scanPreview} alt="Your selected photo" /> : <Icon name="photo" />}{automatic && <span className="scan-line" />}</div> : <div className="wallet-art" aria-hidden="true"><div className="wallet-back" /><div className="wallet-card"><span className="wallet-portrait" /><div className="wallet-lines"><i /><i /><i /><i /></div><span className="wallet-seal"><Icon name="check" /></span></div></div>}
-        <h1>{busy ? automatic ? 'A private check, right here.' : 'Opening your photo…' : <>Cover before<br />you share.</>}</h1>
+        {busy ? <div className="scan-art">{scanPreview ? <img src={scanPreview} alt="Your selected photo" /> : <Icon name="photo" />}{automatic && !manualChosen && <span className="scan-line" />}</div> : <div className="wallet-art" aria-hidden="true"><div className="wallet-back" /><div className="wallet-card"><span className="wallet-portrait" /><div className="wallet-lines"><i /><i /><i /><i /></div><span className="wallet-seal"><Icon name="check" /></span></div></div>}
+        <h1>{busy ? automatic && !manualChosen ? 'A private check, right here.' : 'Opening your photo…' : <>Cover before<br />you share.</>}</h1>
         <p>{busy ? 'Your photo stays on this device. You can review and adjust every cover.' : 'Your ID, receipt, or screenshot. Cover personal details before you send it.'}</p>
       </section>
       <section className="photo-actions" aria-label="Start with a photo">
-        {!busy && <div className="actions"><button disabled={!ready || downloading || smartLoading} onClick={() => camera.current?.click()}><Icon name="camera" />Take Photo</button><button disabled={!ready || downloading || smartLoading} className="secondary" onClick={() => picker.current?.click()}><Icon name="photo" />Choose Photo</button></div>}
+        {!busy && <section className="mode-card" aria-label="Photo checking mode">
+          <h2>{manualChosen ? 'Manual covers selected' : automatic ? 'Automatic checks on' : 'Set up automatic checks'}</h2>
+          <p>{manualChosen ? 'You will draw the covers yourself. No automatic detection or risk rating will run.' : automatic ? 'Your next photo will be checked for text, faces and codes on this device.' : 'Download the checking tools before choosing a photo. One-time setup, about 205 MB; then checks work offline.'}</p>
+          {!automatic && (downloading ? <><div className="download-progress" role="status"><span className="activity" aria-hidden="true" /><p>{progress}</p></div><p className="caption">Keep this tab open. Completed files are saved for retry.</p><button className="secondary" onClick={() => void stopDownload()}>Cancel download</button></> : <button disabled={!ready || smartLoading} onClick={() => void prepareTools()}>Download automatic checks</button>)}
+          {automatic && <p className="checks-ready"><Icon name="check" />Automatic checks ready offline</p>}
+          {!downloading && <button className="mode-switch" disabled={!ready || smartLoading || (manualChosen && !automatic)} onClick={() => { setManualChosen(!manualChosen); setError(''); }}>{manualChosen ? automatic ? 'Use automatic checks' : 'Manual covers selected' : 'Use manual covers instead'}</button>}
+        </section>}
+        {!busy && <div className="actions"><button disabled={!ready || (!automatic && !manualChosen) || downloading || smartLoading} onClick={() => camera.current?.click()}><Icon name="camera" />Take Photo</button><button disabled={!ready || (!automatic && !manualChosen) || downloading || smartLoading} className="secondary" onClick={() => picker.current?.click()}><Icon name="photo" />Choose Photo</button></div>}
         {(!ready || busy) && <div className="setup" role="status"><span className="activity" aria-hidden="true" /><p>{progress}</p></div>}
         {busy && pipeline.current && <button className="secondary" onClick={() => pipeline.current?.dispose()}>Continue with manual covers</button>}
         {error && <div className="notice" role="alert"><p>{error}</p>{!ready && <button className="secondary" onClick={retry}>Retry setup</button>}</div>}
-        {!busy && <p className="offline-tip"><Icon name="check" />{automatic ? 'Your saved checks work offline.' : 'Manual covers work offline. No model needed.'}</p>}
+        {!busy && <p className="offline-tip"><Icon name="check" />{automatic && !manualChosen ? 'Your saved checks work offline.' : 'Manual covers work offline. No model needed.'}</p>}
       </section>
       </div>
       {!busy && <section className="offline-kit" aria-labelledby="offline-kit-title"><div className="kit-heading"><p className="eyebrow">YOUR OFFLINE TOOLKIT</p><h2 id="offline-kit-title">A little help finding details.</h2><p>Optional tools, saved on this device. Download once while connected, then use them offline.</p></div><div className="kit-grid">
-      <section className="smart-summary"><div className="tool-heading"><span className="tool-icon"><Icon name={automatic ? 'check' : 'download'} /></span><span className="tool-size">205 MB</span></div><h3>Automatic checks</h3><p>Find text, faces and codes on your device. Always review the whole photo: automatic checks can miss details.</p>
-        {downloading && <div className="download-progress" role="status"><span className="activity" aria-hidden="true" /><p>{progress}</p></div>}
-        {downloading ? <><p className="caption">Keep this tab open. Completed files are saved if you cancel or need to retry.</p><button className="secondary" onClick={() => void stopDownload()}>Cancel download</button></> : <button className="secondary" disabled={!ready || automatic || smartLoading} onClick={() => void prepareTools()}>{automatic ? 'Automatic checks ready offline' : 'Download automatic checks'}</button>}
-      </section>
       <section className="smart-summary"><div className="tool-heading"><span className="tool-icon"><Icon name="photo" /></span><span className="tool-size">290 MB</span></div><h3>Optional smart summary</h3><p>A local language model explains the detected categories. Your photo and its text stay out of this model.</p>
         <button className="secondary" disabled={!ready || !automatic || !gpuReady || downloading || smartLoading || smartReady} onClick={() => void prepareSummary()}>{smartReady ? 'Smart summary ready' : smartLoading ? 'Preparing smart summary…' : 'Download smart summary'}</button>
         {smartStatus && <p className="caption" role="status">{smartStatus}</p>}

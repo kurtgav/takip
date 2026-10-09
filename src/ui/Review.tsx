@@ -9,11 +9,11 @@ import { PhotoEditor } from './PhotoEditor';
 import { WatermarkEditor } from './WatermarkEditor';
 import { applyCoverPreset, type CoverPreset } from '../pipeline/document';
 
-interface Props { result: ScanOutput; photo: LocalPhoto; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void }
+interface Props { result: ScanOutput; photo: LocalPhoto; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void; onSetup: () => void }
 type Stage = 'cover' | 'watermark' | 'save';
 const stages: { id: Stage; label: string }[] = [{ id: 'cover', label: 'Cover' }, { id: 'watermark', label: 'Watermark' }, { id: 'save', label: 'Save' }];
 
-export function Review({ result, photo, summary, onReset }: Props) {
+export function Review({ result, photo, summary, onReset, onSetup }: Props) {
   const [stage, setStage] = useState<Stage>('cover');
   const [editingDetails, setEditingDetails] = useState(false);
   const [removed, setRemoved] = useState<Detection>();
@@ -100,6 +100,7 @@ export function Review({ result, photo, summary, onReset }: Props) {
         <p className="caption" data-testid="summary-source">{result.analysisStatus === 'manual' ? 'Manual editing' : `${unchangedCategories && summary?.source === 'model' ? 'Local model summary' : 'Standard on-device summary'} · ${(result.elapsedMs / 1000).toFixed(1)}s scan`}</p>
       </div>
       {result.warnings.map(warning => <p className="notice" key={warning}>{warning}</p>)}
+      {result.analysisStatus === 'manual' && <div className="manual-recovery"><p>Want automatic detection? Close this photo, set up the checks, then choose your photo again. Closing discards this session’s edits.</p><button className="secondary" onClick={onSetup}>Close photo and set up checks</button></div>}
       {!editingDetails && <div className="detection-chips" aria-label="Detected details">{detections.map((box, index) => <button key={box.id} data-category={box.category} className={selected === box.id ? 'chip selected' : 'chip'} onClick={() => { setSelected(box.id); setBefore(false); }}>{categoryLabels[box.category]} <span>{index + 1}</span></button>)}</div>}
       {detections.length > 0 && <button className="secondary edit-details" aria-expanded={editingDetails} aria-controls="detail-editor" onClick={() => setEditingDetails(!editingDetails)}>Edit detected details</button>}
       {editingDetails && <div id="detail-editor">

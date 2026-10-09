@@ -6,7 +6,15 @@ export async function enableAutomaticChecks(page: Page): Promise<void> {
   const download = page.getByRole('button', { name: 'Download automatic checks', exact: true });
   await expect(download).toBeEnabled({ timeout: 120_000 });
   await download.click();
-  await expect(page.getByRole('button', { name: 'Automatic checks ready offline', exact: true })).toBeVisible({ timeout: 240_000 });
+  await expect(page.getByText('Automatic checks ready offline', { exact: true })).toBeVisible({ timeout: 240_000 });
+}
+
+export async function chooseManualMode(page: Page): Promise<void> {
+  await expect(page.getByText('Manual editor ready offline', { exact: true })).toBeVisible({ timeout: 120_000 });
+  const choose = page.getByRole('button', { name: 'Choose Photo', exact: true });
+  await expect(choose).toBeDisabled();
+  await page.getByRole('button', { name: 'Use manual covers instead', exact: true }).click();
+  await expect(choose).toBeEnabled();
 }
 
 export async function continueToWatermark(page: Page): Promise<void> {

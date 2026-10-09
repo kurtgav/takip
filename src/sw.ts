@@ -1,7 +1,8 @@
 /// <reference lib="webworker" />
 import { cacheOfflineAsset } from './offline-download';
 
-declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision?: string }> };
+interface ManifestEntry { url: string; revision?: string | null }
+declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: ManifestEntry[] };
 
 const manifest = self.__WB_MANIFEST;
 const scopePath = new URL(self.registration.scope).pathname;
@@ -18,6 +19,7 @@ const shellManifest = manifest.filter(entry => !isToolAsset(entry));
 const cacheName = crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(manifest)))
   .then(hash => `takip-core-${Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')}`);
 const guardCacheName = 'takip-processing-guards';
+const manifestUrl = new URL('__offline_manifest__', self.registration.scope);
 const guardUrl = (id: string) => new URL(`__processing_guard__/${encodeURIComponent(id)}`, self.registration.scope);
 let setupStatus = { type: 'OFFLINE_PROGRESS', text: 'Checking offline app…' };
 
@@ -27,6 +29,49 @@ interface ToolDownload {
 }
 
 let toolDownload: ToolDownload | undefined;
+
+async function previousTools(cache: Cache): Promise<ManifestEntry[] | undefined> {
+  const saved = await cache.match(manifestUrl);
+  if (!saved) return undefined;
+  const metadata: { scope: string; tools: ManifestEntry[] } = await saved.json();
+  return metadata.scope === self.registration.scope ? metadata.tools : undefined;
+}
+
+async function reuseToolAssets(): Promise<void> {
+  const currentName = await cacheName;
+  const current = await caches.open(currentName);
+  for (const name of await caches.keys()) {
+    if (!name.startsWith('takip-core-') || name === currentName) continue;
+    const previous = await caches.open(name);
+    const entries = await previousTools(previous);
+    // Legacy caches have no revision evidence. Preserve them, but never serve them as current.
+    if (!entries) continue;
+    const revisions = new Map(entries.map(entry => [entry.url, entry.revision]));
+    for (const entry of toolManifest) {
+      const revisionMatches = revisions.has(entry.url) && revisions.get(entry.url) === entry.revision;
+      // Vite's null revisions are safe only for its content-hashed output filenames.
+      const hasIdentity = Boolean(entry.revision) || (entry.revision === null && /^assets\/[^/]+-[\w-]{8,}\.(?:js|wasm)$/.test(entry.url));
+      if (!revisionMatches || !hasIdentity) continue;
+      const url = new URL(entry.url, self.registration.scope);
+      if (await current.match(url)) continue;
+      const response = await previous.match(url);
+      if (response) await current.put(url, response);
+    }
+  }
+}
+
+async function retirePreviousCaches(includeLegacy = false): Promise<void> {
+  const currentName = await cacheName;
+  for (const name of await caches.keys()) {
+    if (!name.startsWith('takip-core-') || name === currentName) continue;
+    const cache = await caches.open(name);
+    // Scope-specific keys avoid deleting another app's caches on this origin.
+    const known = await previousTools(cache);
+    const legacyHere = includeLegacy && !await cache.match(manifestUrl)
+      && await cache.match(new URL('index.html', self.registration.scope));
+    if (known || legacyHere) await caches.delete(name);
+  }
+}
 
 async function broadcast(message: { type: string; text: string }) {
   for (const client of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) {
@@ -73,6 +118,7 @@ async function downloadToolAssets(signal: AbortSignal): Promise<void> {
       }
     }, 60_000, signal);
   }
+  if (!await hasProcessingClient() && await toolsReady()) await retirePreviousCaches(true);
   await broadcast({ type: 'TOOLS_PROGRESS', text: 'Local tools saved for offline use.' });
 }
 
@@ -116,6 +162,7 @@ self.addEventListener('install', event => {
           }
         });
       }
+      await cache.put(manifestUrl, Response.json({ scope: self.registration.scope, tools: toolManifest }));
       await reportSetup('OFFLINE_PROGRESS', 'Offline app ready.');
     } catch (error) {
       await reportSetup('OFFLINE_ERROR', error instanceof Error ? error.message : 'Offline setup failed. Check your connection and storage, then retry.');
@@ -126,8 +173,9 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    const currentCache = await cacheName;
-    for (const name of await caches.keys()) if (name.startsWith('takip-core-') && name !== currentCache) await caches.delete(name);
+    // Activation waits for the previous app's clients to close, including in-flight downloads.
+    await reuseToolAssets();
+    await retirePreviousCaches();
     await self.clients.claim();
   })());
 });

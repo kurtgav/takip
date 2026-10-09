@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { crc32 } from 'node:zlib';
-import { continueToSave, continueToWatermark, enableAutomaticChecks, expandDetails, samplePhoto } from './sample';
+import { chooseManualMode, continueToSave, continueToWatermark, enableAutomaticChecks, expandDetails, samplePhoto } from './sample';
 
 const PNG_SIGNATURE_BYTES = 8;
 const PRIVATE_MARKER = 'TAKIP_PRIVATE_MARKER_SAMPLE_ONLY';
@@ -157,7 +157,7 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
 
 test('back navigation retains edits and later edits invalidate review confirmation', async ({ page }, testInfo) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Choose Photo', exact: true })).toBeEnabled({ timeout: 120_000 });
+  await chooseManualMode(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
 
