@@ -25,7 +25,7 @@ export async function createNER() {
         const text = chunk.map(word => word.text).join(' ');
         const result = await classifier(text, { ignore_labels: [] });
         let cursor = 0;
-        const selected = new Map<Word, 'full_name' | 'address'>();
+        const selected = new Map<Word, 'possible_name' | 'possible_location'>();
         for (const token of result.flat()) {
           const piece = token.word.replace(/^##/, '').trim();
           if (!piece) continue;
@@ -37,7 +37,7 @@ export async function createNER() {
           for (const word of chunk) {
             const end = position + word.text.length;
             if (position < cursor && end > index && (word.confidence ?? 100) >= 60 && /[a-z]{3}/i.test(word.text) && !/^(name|surname|address|birthday|birth|date|city|province|pangalan|tirahan|sample)[:.]?$/i.test(word.text)) {
-              selected.set(word, token.entity.endsWith('PER') ? 'full_name' : 'address');
+              selected.set(word, token.entity.endsWith('PER') ? 'possible_name' : 'possible_location');
             }
             position = end + 1;
           }

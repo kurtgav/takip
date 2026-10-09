@@ -91,14 +91,14 @@ test('accepts punctuated labels, DOB alias, and name-part labels without coverin
   ]);
 });
 
-test('classifies bare long numbers by financial and PhilSys priority', () => {
+test('bare long numbers stay generic unless they validate as a payment card', () => {
   assert.deepEqual(detectPatterns(words([
     ['4111111111111111'],
     ['1234567890123456'],
     ['123456789012'],
     ['1234567890123456789'],
   ])).map(({ category }) => category), [
-    'card_number', 'philsys_number', 'account_number', 'account_number',
+    'card_number', 'digits', 'digits', 'digits',
   ]);
 });
 
@@ -126,7 +126,23 @@ test('does not cover titles, agencies, or field labels without values', () => {
   ])), []);
 });
 
+test('passport-shaped references require passport labels or MRZ evidence', () => {
+  for (const document of ['Unknown', 'ID', 'Receipt'] as const) {
+    assert.deepEqual(detectPatterns(words([['AB1234567']]), document), []);
+  }
+  assert.deepEqual(detectPatterns(words([['Reference', 'AB1234567']]), 'Unknown')
+    .map(({ category, enabled }) => [category, enabled]), [['reference', false]]);
+  assert.deepEqual(detectPatterns(words([['Passport', 'No', 'AB1234567']]), 'ID')
+    .map(({ category }) => category), ['passport']);
+  assert.deepEqual(detectPatterns(words([['Order', 'AB1234567']]), 'Receipt'), []);
+});
+
 const at = (text: string, x: number, y: number, width = 100, height = 12, line = 99): Word => ({ text, x, y, width, height, line });
+
+test('unlabeled passport birthplace is not invented as a residential address', () => {
+  const detections = detectPatterns([at('TEST CITY', 150, 80), at('P<PHLSAMPLE<<ALEXIS<<<<<<<<<<<<<<<<<<<<<<<<<', 0, 220, 435), at('P0000000<5PHL9001011F3512311<<<<<<<<<<<<<<08', 0, 240, 435)], 'ID');
+  assert.equal(detections.some(box => box.category === 'address'), false);
+});
 
 test('geometry associates columns despite scrambled OCR line IDs', () => {
   const detections = detectPatterns([
@@ -171,6 +187,18 @@ test('Philippine block and lot anchors preserve both address rows when the field
     at('License', 40, 70), at('A01.23-456789', 40, 90),
   ], 'ID');
   assert.deepEqual(detections.map(({ category, y, height }) => [category, y, height]), [['address', 20, 32], ['drivers_license', 90, 12]]);
+});
+
+test('unlabelled address inference ignores uncertain OCR cues and unreadable companion words', () => {
+  const noise = [
+    { ...at('St', 20, 20, 15), confidence: 58 },
+    { ...at('rnv', 40, 20, 25), confidence: 31 },
+    { ...at('ii', 70, 20, 15), confidence: 14 },
+  ];
+  assert.deepEqual(detectPatterns(noise, 'Unknown'), []);
+  assert.deepEqual(detectPatterns([{ ...noise[0], confidence: 95 }, ...noise.slice(1)], 'Unknown'), []);
+  const address = words([['42', 'Fiction', 'Street']]).map(word => ({ ...word, confidence: 95 }));
+  assert.deepEqual(detectPatterns(address, 'Unknown').map(({ category, x, width }) => [category, x, width]), [['address', 0, 260]]);
 });
 
 test('bilingual passport fields and OCR-confused identifiers keep their complete boxes', () => {
@@ -321,4 +349,185 @@ test('receipt merchant labels suppress phone-shaped merchant values', () => {
 test('masked card on receipt is still sensitive while generic long numbers are suppressed', () => {
   const detections = detectPatterns(words([['Card', '****', '****', '****', '1234'], ['1234567890123456']]), 'Receipt');
   assert.deepEqual(detections.map(({ category, width }) => [category, width]), [['card_number', 350]]);
+});
+
+test('damaged bilingual name labels exclude every label fragment and keep the middle name', () => {
+  const detections = detectPatterns([
+    at('Pangalan/G', 100, 20, 90), at('LINA', 100, 40, 45), at('MAY', 155, 40, 40),
+    at('Panggitnang', 100, 70, 100), at('apetyido/Middie', 210, 70, 110), at('nome', 330, 70, 35),
+    at('SANTOS', 100, 92, 80),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x, y, width }) => [category, x, y, width]), [
+    ['full_name', 100, 40, 95], ['full_name', 100, 92, 80],
+  ]);
+});
+
+test('short real names are not fuzzy field labels', () => {
+  for (const name of ['NATE', 'CARL', 'TATE']) {
+    const detections = detectPatterns(words([['Full', 'Name', name, 'SANTOS']]), 'ID');
+    assert.deepEqual(detections.map(({ category, x, width }) => [category, x, width]), [['full_name', 180, 170]], name);
+  }
+});
+
+test('values on a mixed next row stop at a neighboring field label', () => {
+  const detections = detectPatterns([
+    at('First name', 20, 10), at('Sex', 180, 10, 30),
+    at('LINA', 20, 30, 55), at('F', 180, 30, 10), at('Nationality', 240, 30, 90),
+    at('FILIPINO', 240, 50, 90),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x, y }) => [category, x, y]), [
+    ['full_name', 20, 30], ['sex', 180, 30], ['nationality', 240, 50],
+  ]);
+});
+
+test('small OCR column drift does not merge neighboring identity and medical fields', () => {
+  const detections = detectPatterns([
+    at('Full Name', 55, 10, 120), at('License No.', 625, 10, 110),
+    at('CASEY SAMPLE', 55, 32, 180), at('A01-23-456789', 623, 32, 170),
+    at('Blood Type', 55, 70, 100), at('Conditions', 625, 70, 110),
+    at('AB+', 55, 92, 45), at('NONE', 625, 92, 60),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x }) => [category, x]), [
+    ['full_name', 55], ['drivers_license', 623], ['medical_details', 55], ['medical_details', 625],
+  ]);
+});
+
+test('adjacent name-part labels cover the continuous name row including intervening tokens', () => {
+  const detections = detectPatterns([
+    at('Last Name.', 80, 10, 90), at('First Name.', 175, 10, 95), at('Middle Name.', 275, 10, 110),
+    at('SANTOS,', 80, 32, 80), at('ALEXIS', 175, 32, 75), at('MAY', 255, 32, 45), at('REYES', 310, 32, 70),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x, y, width }) => [category, x, y, width]), [['full_name', 80, 32, 300]]);
+});
+
+test('damaged translated birthplace label anchors the complete left-aligned value', () => {
+  const detections = detectPatterns([
+    at('Lugar', 80, 10, 45), at('gan', 160, 10, 25), at('akan/', 195, 10, 45),
+    at('Ploce', 250, 10, 45), at('of', 305, 10, 15), at('birth', 330, 10, 45),
+    at('CEBU', 80, 32, 60), at('CITY', 165, 32, 60),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x, y, width }) => [category, x, y, width]), [['birthplace', 80, 32, 145]]);
+});
+
+test('labeled school and employee fields distinguish institution metadata', () => {
+  const detections = detectPatterns(words([
+    ['School', 'ID', '123456'], ['School', 'Name', 'SAMPLE', 'ACADEMY'],
+    ['Student', 'ID', 'ST-2026-018'], ['LRN', '123456789012'],
+    ['Course', 'BS', 'COMPUTER', 'SCIENCE'], ['Employee', 'ID', 'EMP-0214'],
+    ['Job', 'Title', 'DESIGNER'], ['Department', 'OPERATIONS'],
+  ]), 'ID');
+  assert.deepEqual(detections.map(({ category, x }) => [category, x]), [
+    ['student_number', 180], ['learner_number', 90], ['education', 90],
+    ['employee_number', 180], ['employment_details', 180], ['employment_details', 90],
+  ]);
+});
+
+test('government department headings are not employee details and medical values stop at field boundaries', () => {
+  const detections = detectPatterns([
+    ...words([['DEPARTMENT', 'OF', 'TRANSPORTATION']]),
+    at('Blood Type', 20, 50, 90), at('Eyes Color', 190, 50, 90),
+    at('BROWN', 190, 70, 80),
+    at('Conditions', 20, 100, 90), at('DL Codes', 190, 100, 90),
+    at('NONE', 20, 120, 50), at('A, B', 190, 120, 50),
+    at('Official Signature', 190, 160, 150),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x, y, width }) => [category, x, y, width]), [['medical_details', 20, 120, 50]]);
+});
+
+test('signature OCR beside a medical label cannot displace its printed value below', () => {
+  const detections = detectPatterns([
+    at('Blood Type', 20, 50, 75, 10), at('Eyes Color', 180, 50, 75, 10),
+    at('-', 40, 70, 5, 3), at('BROWN', 180, 70, 55, 12),
+    at('Conditions', 180, 100, 75, 10),
+    { ...at('scribble', 300, 75, 80, 55), confidence: 20 },
+    at('NONE', 180, 118, 45, 12),
+    at('OFFICER', 390, 118, 65, 12),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x, y, width, height }) => [category, x, y, width, height]), [['medical_details', 180, 118, 45, 12]]);
+});
+
+test('payment labels protect PAN despite an OCR checksum error, CVV, short expiry and cardholder', () => {
+  const detections = detectPatterns(words([
+    ['Card', 'Number', '4111', '1111', '1111', '1112'], ['CVV', '123'],
+    ['Expiry', 'Date', '08/29'], ['Cardholder', 'Name', 'LINA', 'SANTOS'],
+    ['Account', 'Number', '123456789012'], ['OTP', '654321'],
+  ]), 'Payment card');
+  assert.deepEqual(detections.map(({ category, x, width }) => [category, x, width]), [
+    ['card_number', 180, 350], ['card_security_code', 90, 80], ['expiry_date', 180, 80],
+    ['full_name', 180, 170], ['account_number', 180, 80], ['payment_secret', 90, 80],
+  ]);
+  assert.deepEqual(detectPatterns(words([['123'], ['08/29']]), 'Unknown'), []);
+});
+
+test('payment-card expiry aliases work in card context', () => {
+  for (const label of ['VALID THRU', 'VALID THROUGH', 'GOOD THRU', 'EXPIRES']) {
+    assert.deepEqual(detectPatterns([at(label, 10, 10), at('12/29', 10, 30)], 'Payment card')
+      .map(({ category, x, y }) => [category, x, y]), [['expiry_date', 10, 30]], label);
+    assert.deepEqual(detectPatterns([at(label, 10, 10), at('12/29', 10, 30)], 'Receipt'), []);
+  }
+});
+
+test('joined CVV OCR alias needs payment evidence and bank name stays institutional', () => {
+  const code = words([['CW', '123']]);
+  assert.deepEqual(detectPatterns(code, 'Unknown'), []);
+  assert.deepEqual(detectPatterns(code, 'ID'), []);
+  assert.deepEqual(detectPatterns(code, 'Payment card').map(({ category, x }) => [category, x]), [['card_security_code', 90]]);
+  assert.deepEqual(detectPatterns(words([['Card', 'Number', '4111111111111111'], ['CW', '123']]), 'Unknown')
+    .map(({ category }) => category), ['card_number', 'card_security_code']);
+  assert.deepEqual(detectPatterns(words([['Bank', 'Name', 'SAMPLE', 'BANK']]), 'Payment card'), []);
+});
+
+test('labeled truncated PAN keeps its full printed box without asserting short unlabelled numbers are cards', () => {
+  for (const values of [['4111', '1111'], ['4111', '1111', '1111']]) {
+    const detections = detectPatterns(words([['Card', 'Number', ...values]]), 'Payment card');
+    assert.deepEqual(detections.map(({ category, x, width }) => [category, x, width]), [['card_number', 180, values.length * 90 - 10]]);
+    assert.ok(!detectPatterns(words([values]), 'Unknown').some(box => box.category === 'card_number'));
+  }
+});
+
+test('government number labels disambiguate identical twelve-digit values', () => {
+  const detections = detectPatterns(words([
+    ['SS', 'No', '1234567890'], ['CRN', '123456789012'], ['TIN', '123456789'],
+    ['MID', '123456789012'], ['PhilHealth', 'PIN', '123456789012'],
+    ['PSN', '123456789012'], ['PCN', '1234567890123456'], ['RTN', '123456789012'],
+    ['MP2', 'Account', '123456789012'], ['GSIS', 'Number', 'BP-1234567890'],
+    ['Agency', 'Code', 'N01'], ['Blood', 'Type', 'O+'],
+  ]), 'ID');
+  assert.deepEqual(detections.map(({ category }) => category), [
+    'sss', 'umid', 'tin', 'pagibig', 'philhealth', 'philsys_number', 'philsys_number', 'pagibig_rtn',
+    'account_number', 'government_number', 'agency_code', 'medical_details',
+  ]);
+  assert.equal(detections.find(box => box.category === 'agency_code')?.enabled, false);
+  assert.deepEqual(detectPatterns(words([['1234-5678-9012'], ['1234-5678-9012-3456']]), 'Unknown')
+    .map(({ category }) => category), ['digits', 'digits']);
+});
+
+test('Philippine passport zones survive missing number OCR with independent title and name anchors', () => {
+  const detections = detectPatterns([
+    at('PASAPORTE/', 20, 10, 100),
+    at('Surname', 180, 45), at('SANTOS', 180, 65),
+    at('Given names', 180, 90), at('LINA MAY', 180, 110),
+    at('P<PHLSANTOS<<LINA<MAY<<<<<<<<<<<<<<<<<<<<', 10, 250, 500, 15),
+    at('P1234567<0PHL9403143F3003149<<<<<<<<<<<<<<00', 10, 275, 500, 15),
+  ], 'ID');
+  for (const category of ['passport_security_area', 'passport_portrait_area']) {
+    const area = detections.find(box => box.category === category);
+    assert.ok(area?.enabled);
+    assert.equal(area.y, 22);
+    assert.equal(area.y + area.height, 250);
+  }
+  assert.equal(detections.find(box => box.category === 'passport_portrait_area')?.width, 170);
+});
+
+test('checked MRZ dates support a single intervening OCR-damaged issue date', () => {
+  const fixture = [
+    at('14', 150, 70, 20), at('MAR', 175, 70, 35), at('1994', 215, 70, 40),
+    at('13', 150, 110, 20), at('MAR', 175, 110, 35), at('2D2O', 215, 110, 40),
+    at('14', 150, 160, 20), at('MAR', 175, 160, 35), at('2030', 215, 160, 40),
+    at('P<PHLSANTOS<<LINA<MAY<<<<<<<<<<<<<<<<<<<<', 0, 220, 435),
+    at('P1234567<0PHL9403143F3003149<<<<<<<<<<<<<<00', 0, 240, 435),
+  ];
+  assert.deepEqual(detectPatterns(fixture, 'ID').filter(box => box.category.endsWith('date') || box.category === 'birthday')
+    .map(({ category, y }) => [category, y]), [['birthday', 70], ['issue_date', 110], ['expiry_date', 160]]);
+  assert.ok(!detectPatterns([...fixture, at('2021/01/01', 150, 135)], 'ID').some(box => box.category === 'issue_date'));
 });

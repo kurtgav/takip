@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyCoverPreset, guessDocument } from '../src/pipeline/document.ts';
+import { applyCoverPreset, guessDocument, usesEntityModel } from '../src/pipeline/document.ts';
 import type { Category, Detection, Word } from '../src/types.ts';
 
 const words = (text: string): Word[] => text.split(' ').map((word, index) => ({ text: word, line: 0, x: index, y: 0, width: 1, height: 1 }));
@@ -46,10 +46,23 @@ test('receipt merchant TIN does not compete with clear receipt clues', () => {
 test('clipped receipts retain classification from checkout labels without the receipt title', () => {
   assert.equal(guessDocument(words('Cashier 7 Service charge Total Balance'), []), 'Receipt');
   assert.equal(guessDocument(words('Order type Total VAT'), []), 'Receipt');
+  assert.equal(guessDocument(words('Service charge NET'), []), 'Receipt');
   assert.equal(guessDocument(words('Total alone'), []), 'Unknown');
 });
 
 test('MRZ and Filipino passport clues support ID classification', () => {
   assert.equal(guessDocument(words('P<PHLDELA<CRUZ<<LINA<MAY<<<<<<<<<<<<<<<<<<<<<')), 'ID');
   assert.equal(guessDocument(words('Pasaporte Nasyonalidad Petsa ng kapanganakan')), 'ID');
+});
+
+test('structured school, employee and payment cards use field evidence, not entity guesses', () => {
+  for (const text of ['Student ID Name Example', 'Employee number Example', 'Learner reference number', 'Credit VISA Valid thru', 'Mastercard Cardholder']) {
+    const guess = guessDocument(words(text));
+    assert.notEqual(guess, 'Unknown', text);
+    assert.equal(usesEntityModel(guess), false, text);
+  }
+  assert.equal(usesEntityModel('ID'), false);
+  assert.equal(usesEntityModel('Receipt'), false);
+  assert.equal(usesEntityModel('Chat screenshot'), true);
+  assert.equal(usesEntityModel('Unknown', ['pagibig', 'card_number']), false);
 });

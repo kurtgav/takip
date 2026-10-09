@@ -6,7 +6,7 @@ import type { Category } from '../src/types.ts';
 test('rates direct identifiers, financial details, and QR codes High', () => {
   const high: Category[] = [
     'philsys_number', 'tin', 'sss', 'umid', 'philhealth', 'pagibig',
-    'drivers_license', 'passport', 'mrz', 'passport_security_area', 'card_number', 'account_number', 'qr_code',
+    'drivers_license', 'passport', 'mrz', 'passport_security_area', 'passport_portrait_area', 'passport_details_area', 'card_number', 'account_number', 'qr_code',
   ];
   for (const category of high) assert.equal(riskLevel([category]), 'High', category);
 });
@@ -62,4 +62,11 @@ test('summary mentions only supplied category labels', () => {
   const summary = templateSummary(['phone']);
   assert.match(summary, /Phone number/);
   assert.doesNotMatch(summary, /Full name|Address|Birthday|ID number|Account number|QR code/);
+});
+test('new holder identifiers and payment secrets are high risk; issuer metadata and model guesses are not', () => {
+  for (const category of ['student_number', 'learner_number', 'employee_number', 'government_number', 'pagibig_rtn', 'card_security_code', 'payment_secret'] as const) assert.equal(riskLevel([category]), 'High');
+  assert.equal(riskLevel(['medical_details']), 'Medium');
+  assert.equal(riskLevel(['education']), 'Medium');
+  assert.equal(riskLevel(['agency_code']), 'Low');
+  assert.equal(riskLevel(['possible_name', 'possible_location']), 'Low');
 });

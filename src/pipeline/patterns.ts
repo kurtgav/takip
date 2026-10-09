@@ -22,7 +22,8 @@ const oneEditApart = (a: string, b: string): boolean => {
   return edits + Number(left < a.length || right < b.length) <= 1;
 };
 const datePattern = /^(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4}|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2},?\s+\d{4})$/i;
-const labeledDate = (value: string) => datePattern.test(value) || (/^[0-9A-Z/-]{6,12}$/i.test(value) && digits(value).length >= 6 && value.replace(/[^a-z]/gi, '').length <= 2);
+const labeledDate = (value: string) => datePattern.test(value) || datePattern.test(value.replace(/[OQD]/g, '0').replace(/[IL]/g, '1'))
+  || (/^[0-9A-Z/-]{6,12}$/i.test(value) && digits(value).length >= 6 && value.replace(/[^a-z]/gi, '').length <= 2);
 
 export function isLuhn(value: string): boolean {
   const number = digits(value);
@@ -47,49 +48,95 @@ const identifierPatterns: Array<[Category, RegExp]> = [
   ['passport', /^[A-Z]{1,2}\d{7}[A-Z]?$/i],
   ['phone', /^(?:\+63|0)9\d{2}-?\d{3}-?\d{4}$/],
 ];
-type Rule = { labels: string[]; category?: Category; validate?: (value: string) => boolean; enabled?: boolean; customer?: boolean };
+type Rule = { labels: string[]; category?: Category; validate?: (value: string) => boolean; enabled?: boolean; customer?: boolean; payment?: boolean };
 const personalText = (value: string) => /[a-z]/i.test(value) && !/\b(?:authority|department|government|office|agency|republic)\b/i.test(value);
+const labeledIdentifier = (value: string) => /^[A-Z0-9][A-Z0-9 ./-]{2,30}$/i.test(value.trim()) && /\d/.test(value);
+const numericLength = (...lengths: number[]) => (value: string) => /^[\d .-]+$/.test(value) && lengths.includes(digits(value).length);
+const expiryDate = (value: string) => labeledDate(value) || /^(?:0[1-9]|1[0-2])\s*[/ -]\s*\d{2,4}$/.test(value);
 const receiptMerchantLabel = '(?:tin|vat reg|terminal|order|receipt|invoice|transaction|reference|ref|merchant|permit|accreditation|serial|machine|cashier)';
 const receiptMerchantRow = new RegExp(`\\b${receiptMerchantLabel}(?: no| number| id)?\\b`, 'i');
 const receiptMerchantPrefix = new RegExp(`(?:^| )${receiptMerchantLabel}(?: no| number| id)?$`);
 const labelRules: Rule[] = [
   { labels: ['date of birth', 'birth date', 'birthday', 'dob', 'petsa ng kapanganakan', 'kapanganakan'], category: 'birthday', validate: labeledDate },
-  { labels: ['expiration date', 'expiry date', 'date of expiry', 'date of expiration', 'valid until', 'petsa ng pagkapaso'], category: 'expiry_date', validate: value => datePattern.test(value) },
-  { labels: ['date of issue', 'issue date', 'date issued', 'petsa ng pagkakaloob'], category: 'issue_date', validate: value => datePattern.test(value) },
-  { labels: ['place of birth', 'birthplace', 'pook ng kapanganakan'], category: 'birthplace', validate: personalText },
+  { labels: ['expiration date', 'expiry date', 'date of expiry', 'date of expiration', 'valid until', 'petsa ng pagkapaso', 'petsa ng pagkawala ng bisa'], category: 'expiry_date', validate: expiryDate },
+  { labels: ['valid thru', 'valid through', 'good thru', 'expires'], category: 'expiry_date', validate: expiryDate, payment: true },
+  { labels: ['date of issue', 'issue date', 'date issued', 'petsa ng pagkakaloob'], category: 'issue_date', validate: labeledDate },
+  { labels: ['place of birth', 'birthplace', 'pook ng kapanganakan', 'lugar ng kapanganakan'], category: 'birthplace', validate: personalText },
   { labels: ['customer name', 'customer', 'sold to', 'bill to', 'billed to', 'ship to'], category: 'full_name', validate: personalText, customer: true },
   { labels: ['customer address', 'billing address', 'shipping address', 'delivery address'], category: 'address', validate: personalText, customer: true },
-  { labels: ['first name', 'given names', 'given name', 'middle name', 'last name', 'last name first name middle', 'surname', 'full name', 'name', 'pangalan', 'apelyido', 'gitnang pangalan', 'panggitnang apelyido'], category: 'full_name', validate: personalText },
+  { labels: ['first name', 'given names', 'given name', 'middle name', 'last name', 'last name first name middle', 'surname', 'full name', 'cardholder name', 'name on card', 'account name', 'registered name', 'name', 'pangalan', 'apelyido', 'gitnang pangalan', 'panggitnang apelyido'], category: 'full_name', validate: personalText },
   { labels: ['address', 'tirahan', 'city', 'province'], category: 'address', validate: personalText },
   { labels: ['license no', 'license number', 'licence no', 'licence number', 'license', 'licence'], category: 'drivers_license', validate: value => /^[A-Z0-9][0-9OIL]{2}[-. ]?[0-9OIL]{2}[-. ]?[0-9OIL]{6}$/i.test(value.trim()) },
-  { labels: ['passport no', 'passport number', 'pasaporte blg'], category: 'passport', validate: value => /^[A-Z]{1,2}[0-9OIL]{7}[A-Z]?$/i.test(value.replace(/\s/g, '')) },
-  { labels: ['account number', 'account no', 'account'], category: 'account_number', validate: value => digits(value).length >= 9 },
-  { labels: ['card number', 'card no', 'card'], category: 'card_number', validate: value => isLuhn(value) || /(?:[*xX•]{2,}[ -]*)+\d{4}$/.test(value) },
+  { labels: ['passport no', 'passport number', 'passport', 'pasaporte blg'], category: 'passport', validate: value => /^[A-Z]{1,2}[0-9OIL]{7}[A-Z]?$/i.test(value.replace(/\s/g, '')) },
+  { labels: ['account number', 'account no', 'mp2 account number', 'mp2 account', 'account'], category: 'account_number', validate: value => /^[\d .-]+$/.test(value) && digits(value).length >= 9 },
+  // OCR can merge repeated digits. A field label supports covering the whole
+  // printed number even when its transcription is too short for PAN validation.
+  { labels: ['card number', 'card no', 'pan', 'card'], category: 'card_number', validate: value => /^[\d .-]+$/.test(value)
+    && digits(value).length >= 8 && digits(value).length <= 19 || /(?:[*xX•]{2,}[ -]*)+\d{4}$/.test(value) },
+  { labels: ['cvv', 'cvc', 'cid', 'cvv2', 'cvc2', 'security code'], category: 'card_security_code', validate: numericLength(3, 4) },
+  { labels: ['cw'], category: 'card_security_code', validate: numericLength(3, 4), payment: true },
+  { labels: ['one time password', 'otp', 'pin code'], category: 'payment_secret', validate: numericLength(4, 5, 6, 8) },
+  { labels: ['student number', 'student no', 'student id', 'student id number'], category: 'student_number', validate: labeledIdentifier },
+  { labels: ['learner reference number', 'lrn'], category: 'learner_number', validate: numericLength(12) },
+  { labels: ['employee number', 'employee no', 'employee id', 'employee id number', 'personnel number', 'personnel no'], category: 'employee_number', validate: labeledIdentifier },
+  { labels: ['course', 'program', 'year level', 'section'], category: 'education', validate: value => /[a-z0-9]/i.test(value) },
+  { labels: ['sss number', 'sss no', 'ss number', 'ss no', 'sss'], category: 'sss', validate: numericLength(10) },
+  { labels: ['common reference number', 'crn', 'umid number'], category: 'umid', validate: numericLength(12) },
+  { labels: ['tax identification number', 'tin number', 'tin'], category: 'tin', validate: numericLength(9, 12) },
+  { labels: ['pag ibig mid number', 'pag ibig mid', 'pag ibig number', 'mid number', 'mid no', 'mid', 'pag ibig'], category: 'pagibig', validate: numericLength(12) },
+  { labels: ['philhealth identification number', 'philhealth number', 'philhealth pin', 'philhealth'], category: 'philhealth', validate: numericLength(12) },
+  { labels: ['philsys card number', 'philsys number', 'national id number', 'national id', 'pcn', 'psn'], category: 'philsys_number', validate: numericLength(12, 16) },
+  { labels: ['nationality', 'nasyonalidad'], category: 'nationality', validate: value => /^[a-z .-]{3,30}$/i.test(value) },
+  { labels: ['sex', 'kasarian'], category: 'sex', validate: value => /^(?:[MF]|male|female|lalaki|babae)$/i.test(value) },
+  { labels: ['agency code', 'rdo code'], category: 'agency_code', validate: labeledIdentifier, enabled: false },
+  { labels: ['blood type'], category: 'medical_details', validate: value => /^(?:A|B|AB|O)(?:\s*[+-])?$/i.test(value) },
+  { labels: ['medical conditions', 'conditions', 'diagnosis'], category: 'medical_details', validate: value => /[a-z0-9]/i.test(value) },
+  { labels: ['job title', 'position', 'department'], category: 'employment_details', validate: personalText },
+  { labels: ['gsis number', 'gsis no', 'gsis bp number', 'prc number', 'prc no', 'registration number', 'card serial', 'card serial number'], category: 'government_number', validate: labeledIdentifier },
+  { labels: ['registration tracking number', 'rtn'], category: 'pagibig_rtn', validate: numericLength(12) },
   { labels: ['reference number', 'reference no', 'ref no', 'reference'], category: 'reference', validate: value => digits(value).length >= 6, enabled: false },
-  { labels: ['signature of holder', 'signature', 'lagda', 'holder s signature'], category: 'signature' },
+  { labels: ['signature of holder', 'signature of licensee', 'licensee s signature', 'signature', 'lagda', 'holder s signature'], category: 'signature' },
   // Field boundaries stop a neighboring value from being mistaken for a name/address.
-  { labels: ['nationality', 'nasyonalidad', 'sex', 'kasarian', 'height', 'weight', 'blood type', 'restrictions', 'conditions', 'agency code', 'issuing authority', 'issuing office', 'country code', 'type', 'date', 'transaction date', 'receipt date', 'tin', 'terminal', 'order', 'merchant', 'cashier'] },
+  { labels: ['height', 'weight', 'restrictions', 'eye color', 'eyes color', 'dl codes', 'official signature', 'authorized signature', 'issuing authority', 'issuing office', 'country code', 'type', 'date', 'transaction date', 'receipt date', 'terminal', 'order', 'merchant', 'cashier', 'school id', 'school name', 'employer', 'company name', 'bank name'] },
 ];
 const labelPhrases = labelRules.flatMap(rule => rule.labels.map(label => ({ rule, parts: label.split(' ') })))
   .sort((a, b) => b.parts.length - a.parts.length);
 
 type Label = { rule: Rule; start: number; end: number; x: number; right: number };
 const findLabels = (row: IndexedWord[], identityDocument = false): Label[] => {
-  const tokens = row.flatMap((word, index) => normalize(word.text).split(' ').filter(Boolean).map(text => {
-    // A single OCR edit in these long ID labels is common on photographed cards.
-    const corrected = identityDocument ? ['address', 'nationality'].find(label => oneEditApart(text, label)) : undefined;
-    return { text: corrected ?? text, index };
-  }));
+  const tokens = row.flatMap((word, index) => normalize(word.text).split(' ').filter(Boolean).map(text => ({ text, index })));
   const labels: Label[] = [];
   for (let index = 0; index < tokens.length;) {
-    const match = labelPhrases.find(({ parts }) => parts.every((part, offset) => tokens[index + offset]?.text === part)
+    const match = labelPhrases.find(({ parts }) => parts.every((part, offset) => {
+      const text = tokens[index + offset]?.text;
+      // Short fuzzy labels such as name/card/date collide with real names
+      // (NATE/CARL/TATE). Permit them only inside a matching multiword label.
+      return text === part || (identityDocument && (part.length >= 6 || (parts.length > 1 && part.length >= 4))
+        && text?.length >= 4 && oneEditApart(text, part));
+    })
       && (!['city', 'province'].includes(parts[0]) || index === 0));
     if (!match) { index += 1; continue; }
-    const start = tokens[index].index;
+    let start = tokens[index].index;
     const end = tokens[index + match.parts.length - 1].index + 1;
     const previous = labels.at(-1);
-    // Adjacent name parts or bilingual duplicates form one label for one value row.
-    if (previous && previous.rule.category === match.rule.category && match.rule.category !== undefined && start <= previous.end) {
+    // A damaged translation before a readable slash/English label is still label ink.
+    // Stop at a column gap or larger value text rather than swallowing a neighboring field.
+    if (identityDocument && row.slice(Math.max(previous?.end ?? 0, start - 2), start).some(word => /\//.test(word.text))) {
+      const height = Math.max(...row.slice(start, end).map(word => word.height));
+      const translatedStart = row.slice(previous?.end ?? 0, start).findLastIndex(word =>
+        (match.rule.category === 'birthplace' && /^(?:lugar|pook)$/i.test(word.text))
+        || (['birthday', 'issue_date', 'expiry_date'].includes(match.rule.category ?? '') && /^petsa$/i.test(word.text)));
+      if (translatedStart >= 0) start = (previous?.end ?? 0) + translatedStart;
+      while (start > (previous?.end ?? 0)) {
+        const word = row[start - 1];
+        if (/\d/.test(word.text) || word.height > height * 1.4 || row[start].x - word.x - word.width > height * 2) break;
+        start--;
+      }
+    }
+    // Name-part labels share one continuous value row; other adjacent fields
+    // (for example blood type/conditions) retain separate column boundaries.
+    if (previous && previous.rule.category === match.rule.category && match.rule.category !== undefined
+      && (start < previous.end || (match.rule.category === 'full_name' && start === previous.end))) {
       previous.end = end;
       previous.right = row[end - 1].x + row[end - 1].width;
     } else labels.push({ rule: match.rule, start, end, x: row[start].x, right: row[end - 1].x + row[end - 1].width });
@@ -116,12 +163,17 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
   const indexed = words.map((word, index) => ({ ...word, index }));
   const rows = geometricRows(indexed);
   const labelsByRow = rows.map(row => findLabels(row, documentGuess === 'ID'));
+  const labelWords = new Set(rows.flatMap((row, index) => labelsByRow[index].flatMap(label => row.slice(label.start, label.end).map(word => word.index))));
+  const labeledCategories = new Set(labelsByRow.flatMap(labels => labels.map(label => label.rule.category)));
+  const employeeDocument = labeledCategories.has('employee_number') || /\b(?:employee|personnel|staff|company) (?:id|identification|card)\b/.test(normalize(words.map(word => word.text).join(' ')));
   const receipt = documentGuess === 'Receipt';
   const detections: Detection[] = [];
   const claimed = new Set<number>();
   const blocked = new Set<number>();
   const mrzNames = new Set<string>();
   let philippinePassport = false;
+  let mrzNumber: string | undefined;
+  let mrzSex: string | undefined;
   const mrzDates: Array<{ category: 'birthday' | 'expiry_date'; value: string }> = [];
   const add = (category: Category, items: IndexedWord[], enabled = true) => {
     const available = items.filter(item => !claimed.has(item.index));
@@ -132,12 +184,18 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
 
   for (const row of rows) {
     const compact = row.map(word => word.text).join('').replace(/[«‹]/g, '<').replace(/\s/g, '');
-    if (compact.length >= 20 && /<{2}/.test(compact) && /^[A-Z0-9<]+$/i.test(compact)) {
+    if (compact.length >= 20 && (/^P<[A-Z]{3}/i.test(compact) || /<{2}/.test(compact)
+      || /^[A-Z0-9<]{9}\d[A-Z<]{3}\d{7}[MF<]\d{7}/i.test(compact)) && /^[A-Z0-9<]+$/i.test(compact)) {
       add('mrz', row);
       if (/^P<[A-Z]{3}/i.test(compact)) {
         philippinePassport ||= /^P<PHL/i.test(compact);
         for (const name of compact.slice(5).toUpperCase().split('<')) if (name.length >= 3) mrzNames.add(name);
       } else if (/^[A-Z0-9<]{9}\d[A-Z<]{3}\d{7}[MF<]\d{7}/i.test(compact)) {
+        const number = compact.slice(0, 9).toUpperCase();
+        const check = [...number].reduce((sum, char, index) => sum
+          + (char === '<' ? 0 : /\d/.test(char) ? Number(char) : char.charCodeAt(0) - 55) * [7, 3, 1][index % 3], 0) % 10;
+        if (check === Number(compact[9])) mrzNumber = number.replace(/<+$/, '');
+        mrzSex = compact[20].toUpperCase();
         for (const [category, offset] of [['birthday', 13], ['expiry_date', 21]] as const) {
           const value = compact.slice(offset, offset + 6);
           const checksum = [...value].reduce((sum, digit, index) => sum + Number(digit) * [7, 3, 1][index % 3], 0) % 10;
@@ -156,7 +214,11 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
     const labels = labelsByRow[rowIndex];
     for (const [labelIndex, label] of labels.entries()) {
       const { rule } = label;
-      if (!rule.category || (receipt && ((['full_name', 'address'].includes(rule.category) && !rule.customer) || ['reference', 'signature', 'expiry_date', 'issue_date'].includes(rule.category)))) continue;
+      if (!rule.category || (receipt && ((['full_name', 'address'].includes(rule.category) && !rule.customer)
+        || !['full_name', 'address', 'card_number', 'account_number', 'card_security_code', 'payment_secret'].includes(rule.category)))) continue;
+      if (rule.payment && documentGuess !== 'Payment card' && !labeledCategories.has('card_number')) continue;
+      if (rule.category === 'employment_details' && !employeeDocument) continue;
+      if (['education', 'medical_details', 'employment_details', 'sex', 'nationality', 'agency_code'].includes(rule.category) && documentGuess !== 'ID') continue;
       const labelBox = union(row.slice(label.start, label.end));
       if (rule.category === 'signature') {
         if (documentGuess !== 'ID') continue;
@@ -168,24 +230,35 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
         continue;
       }
       const nextLabel = labels[labelIndex + 1];
-      let values = row.slice(label.end, nextLabel?.start ?? row.length);
+      const valueInk = (word: IndexedWord) => (/[a-z0-9]/i.test(word.text) || (rule.category === 'card_number' && /[*xX•]/.test(word.text)))
+        // Tall signature strokes can share a physical row with a medical label.
+        // They are not printed blood/condition values and must not prevent looking below.
+        && (rule.category !== 'medical_details' || word.height <= labelBox.height * 2.5);
+      let values = row.slice(label.end, nextLabel?.start ?? row.length).filter(word => !labelWords.has(word.index) && valueInk(word));
       const left = label.x - labelBox.height;
-      const right = nextLabel?.x ?? Infinity;
+      const right = nextLabel ? nextLabel.x - labelBox.height : Infinity;
       if (rule.category === 'full_name' && /last name first name middle$/.test(normalize(row.slice(label.start, label.end).map(word => word.text).join(' ')))
         && values.length && values.every(word => word.confidence !== undefined && word.confidence < 40)) values = [];
+      if (values.length && rule.validate && !rule.validate(values.map(word => word.text).join(' '))) values = [];
       if (!values.length || (rule.category === 'full_name' && values.every(word => word.height > labelBox.height * 1.4))) {
         for (let below = rowIndex + 1; below < rows.length; below += 1) {
           const candidate = rows[below];
           if (candidate[0].y - (labelBox.y + labelBox.height) > labelBox.height * (rule.category === 'address' ? 5 : 2.5)) break;
-          const inColumn = candidate.filter(word => word.x >= left && word.x < right);
-          if (!inColumn.length) continue;
-          if (labelsByRow[below].some(other => other.x >= left && other.x < right)) break;
+          const boundary = labelsByRow[below].find(other => other.x >= left && other.x < right);
+          const inColumn = candidate.filter(word => word.x >= left && word.x < Math.min(right, boundary?.x ?? Infinity)
+            && !labelWords.has(word.index) && valueInk(word));
+          if (!inColumn.length) { if (boundary) break; else continue; }
           values.push(...inColumn);
-          if (rule.category !== 'address' || values.length > 24) break;
+          if (boundary || rule.category !== 'address' || values.length > 24) break;
         }
       }
       // Never consume adjacent field labels or MRZ as a value.
-      values = values.filter(word => !claimed.has(word.index) && !/[<«‹]{2}/.test(word.text));
+      values = values.filter(word => !claimed.has(word.index) && !labelWords.has(word.index) && !/[<«‹]{2}/.test(word.text));
+      if (rule.category === 'medical_details') {
+        const gap = values.findIndex((word, index) => index > 0 && word.x - values[index - 1].x - values[index - 1].width
+          > Math.max(labelBox.height, word.height, values[index - 1].height) * 3);
+        if (gap > 0) values = values.slice(0, gap);
+      }
       const value = values.map(word => word.text).join(' ');
       if (values.length && (!rule.validate || rule.validate(value))) add(rule.category, values, rule.enabled ?? true);
     }
@@ -214,6 +287,36 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
     }
   }
 
+  if (documentGuess === 'ID' && philippinePassport) {
+    if (mrzNumber) for (const word of indexed) {
+      const value = word.text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!labelWords.has(word.index) && value.length >= 7 && oneEditApart(value, mrzNumber)) add('passport', [word]);
+    }
+    const birthday = detections.find(box => box.category === 'birthday');
+    const expiry = detections.find(box => box.category === 'expiry_date');
+    if (birthday && expiry && birthday.y < expiry.y) {
+      for (const word of indexed) {
+        if (claimed.has(word.index) || labelWords.has(word.index) || word.y < birthday.y - birthday.height || word.y >= expiry.y) continue;
+        if (mrzSex && /^[MF]$/i.test(word.text) && word.text.toUpperCase() === mrzSex && word.y > birthday.y) add('sex', [word]);
+        if (/^FILIPIN[OA][.,]?$/i.test(word.text)) add('nationality', [word]);
+      }
+      // A single date aligned between checked birth/expiry fields is the issue-date
+      // position on this passport layout. Ambiguous extra dates remain unclassified.
+      if (mrzDates.length === 2 && !detections.some(box => box.category === 'issue_date')) {
+        const candidates: IndexedWord[][] = [];
+        for (const row of rows) for (let start = 0; start < row.length; start++) {
+          if (Math.abs(row[start].x - birthday.x) > birthday.height * 2 || row[start].y <= birthday.y + birthday.height || row[start].y >= expiry.y) continue;
+          for (const count of [3, 1]) {
+            const items = row.slice(start, start + count);
+            if (items.length === count && items.every(word => !claimed.has(word.index) && !labelWords.has(word.index))
+              && labeledDate(items.map(word => word.text).join(' '))) { candidates.push(items); break; }
+          }
+        }
+        if (candidates.length === 1) add('issue_date', candidates[0]);
+      }
+    }
+  }
+
   for (const row of rows) {
     for (let start = 0; start < row.length; start += 1) {
       if (claimed.has(row[start].index)) continue;
@@ -231,10 +334,12 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
           continue;
         }
         const match = identifierPatterns.find(([category, pattern]) => (!receipt || category === 'phone')
+          && (category !== 'passport' || labeledCategories.has('passport') || mrzNames.size > 0 || mrzNumber !== undefined)
+          && (!['philsys_number', 'pagibig', 'umid', 'sss', 'philhealth', 'tin'].includes(category) || labeledCategories.has(category))
           && pattern.test(documentGuess === 'ID' && category === 'drivers_license' ? compact.replace(/[.]/g, '-') : compact));
         if (match) { add(match[0], items); break; }
         if (!receipt && /^\d{12,19}$/.test(compact)) {
-          add(isLuhn(compact) ? 'card_number' : compact.length === 16 ? 'philsys_number' : 'account_number', items); break;
+          add(isLuhn(compact) ? 'card_number' : 'digits', items); break;
         }
         // A receipt may still expose a real payment card without a field label.
         if (receipt && /^\d{13,19}$/.test(compact) && isLuhn(compact)) { add('card_number', items); break; }
@@ -244,9 +349,11 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
   }
   if (!receipt) {
     for (const [rowIndex, row] of rows.entries()) {
-      const available = row.filter(word => !claimed.has(word.index));
-      const text = available.map(word => word.text).join(' ');
-      if (text.trim().split(/\s+/).length > 1 && /\b(?:brgy\.?|barangay|st\.?|street|city|province|blk\.?|block|lot|subd\.?|subdivision|purok|sitio)\b/i.test(text)
+      const available = row.filter(word => !claimed.has(word.index) && !labelWords.has(word.index));
+      // An unlabelled address needs readable evidence: a weak OCR "St" amid
+      // noise is not enough. Once anchored, cover the full row to retain details.
+      const text = available.filter(word => word.confidence === undefined || word.confidence >= 70).map(word => word.text).join(' ');
+      if (!philippinePassport && text.trim().split(/\s+/).length > 1 && /\b(?:brgy\.?|barangay|st\.?|street|city|province|blk\.?|block|lot|subd\.?|subdivision|purok|sitio)\b/i.test(text)
         && personalText(text) && !findLabels(available).some(label => label.rule.category !== 'address')) {
         const bounds = union(available);
         const address = [...available];
@@ -275,12 +382,24 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
       const bounds = union(mrz);
       const number = detections.find(box => box.category === 'passport'
         && box.x > bounds.x + bounds.width / 2 && box.y + box.height * 4 < mrz[0].y);
-      if (number) {
+      const names = detections.filter(box => box.category === 'full_name' && box.y < mrz[0].y
+        && box.x > bounds.x + bounds.width * 0.28 && box.x < bounds.x + bounds.width * 0.65);
+      const title = indexed.find(word => /^(?:passport|pasaporte)[/:]?$/i.test(word.text) && word.y < mrz[0].y);
+      const fieldTop = names.length >= 2 ? Math.min(...names.map(box => box.y)) : undefined;
+      // Missing OCR of the number must not disable duplicate-data coverage. Require
+      // independent title, Philippine MRZ, and two central name-field anchors.
+      const top = number?.y ?? (title && fieldTop !== undefined && title.y < fieldTop ? title.y + title.height : undefined);
+      if (top !== undefined) {
         // Philippine passports repeat identity details in the right-hand security print.
         // This is an estimated area, not a claim to recognize the ghost portrait or microtext.
-        const x = Math.max(bounds.x, number.x - Math.max(number.width / 2, number.height * 2));
-        detections.push({ id: `pattern-passport-security-${number.id}`, category: 'passport_security_area', enabled: true,
-          x, y: number.y, width: bounds.x + bounds.width - x, height: mrz[0].y - number.y });
+        const x = number ? Math.max(bounds.x, number.x - Math.max(number.width / 2, number.height * 2)) : bounds.x + bounds.width * 0.6;
+        detections.push({ id: 'pattern-passport-security-area', category: 'passport_security_area', enabled: true,
+          x, y: top, width: bounds.x + bounds.width - x, height: mrz[0].y - top });
+        if (names.length >= 2) {
+          const right = Math.min(...names.map(box => box.x));
+          detections.push({ id: 'pattern-passport-portrait-area', category: 'passport_portrait_area', enabled: true,
+            x: bounds.x, y: top, width: right - bounds.x, height: mrz[0].y - top });
+        }
       }
     }
   }

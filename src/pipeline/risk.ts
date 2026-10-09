@@ -4,7 +4,9 @@ export type RiskLevel = 'Low' | 'Medium' | 'High';
 
 const directHighRisk = new Set<Category>([
   'philsys_number', 'tin', 'sss', 'umid', 'philhealth', 'pagibig',
-  'drivers_license', 'passport', 'mrz', 'passport_security_area', 'card_number', 'account_number', 'qr_code',
+  'drivers_license', 'passport', 'mrz', 'passport_security_area', 'passport_portrait_area', 'passport_details_area', 'card_number', 'account_number', 'qr_code',
+  'card_security_code', 'payment_secret', 'student_number', 'learner_number', 'employee_number',
+  'government_number', 'pagibig_rtn',
 ]);
 
 const uniqueCategories = (categories: Category[]): Category[] =>
@@ -15,9 +17,9 @@ export function riskLevel(categories: Category[]): RiskLevel {
   const has = (category: Category) => unique.includes(category);
   if (unique.some((category) => directHighRisk.has(category))
     || (has('full_name') && (has('birthday') || has('address') || has('signature')))) return 'High';
-  if (has('address') || has('digits') || has('signature') || has('barcode')
+  if (has('address') || has('digits') || has('signature') || has('barcode') || has('medical_details') || has('education')
     || (has('full_name') && (has('phone') || has('face')))
-    || unique.length > 1) return 'Medium';
+    || unique.filter(category => category !== 'agency_code' && category !== 'possible_name' && category !== 'possible_location').length > 1) return 'Medium';
   return 'Low';
 }
 

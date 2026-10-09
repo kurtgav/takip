@@ -57,7 +57,7 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
   test.setTimeout(300_000);
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
-  await page.goto('/');
+  await page.goto('./');
   await enableAutomaticChecks(page);
 
   const input = withSyntheticMetadata(await samplePhoto(page));
@@ -156,7 +156,7 @@ test('reviews, edits, and exports a flattened metadata-free SAMPLE copy', async 
 });
 
 test('back navigation retains edits and later edits invalidate review confirmation', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('./');
   await chooseManualMode(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
@@ -203,4 +203,44 @@ test('back navigation retains edits and later edits invalidate review confirmati
   await expect(page.getByText('Watermark for SAMPLE Recipient', { exact: true })).toBeVisible();
   await expect(page.getByRole('checkbox', { name: /I checked the photo/ })).not.toBeChecked();
   await expect(page.getByRole('button', { name: 'Save safe copy', exact: true })).toBeDisabled();
+});
+
+test('watermark typing keeps the mobile form stable and inside the viewport', async ({ page }) => {
+  await page.addInitScript(() => {
+    const toBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
+      toBlob.call(this, blob => window.setTimeout(() => callback(blob), 500), type, quality);
+    };
+  });
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('./');
+  await chooseManualMode(page);
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Add cover', exact: true }).click();
+  await page.getByRole('button', { name: 'Cover entire photo', exact: true }).click();
+  await continueToWatermark(page);
+  await page.getByRole('checkbox', { name: 'Add a purpose watermark' }).check();
+
+  const recipient = page.getByLabel('Sending to', { exact: true });
+  await expect(recipient).toBeVisible();
+  await expect(page.locator('.preview-status')).toHaveText('');
+  const before = await recipient.evaluate(element => ({
+    top: element.getBoundingClientRect().top + scrollY,
+    fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+  }));
+  await recipient.pressSequentially('S');
+  await expect(page.locator('.preview-status')).toHaveText('Updating covered preview…');
+  const after = await recipient.evaluate(element => ({
+    top: element.getBoundingClientRect().top + scrollY,
+    right: element.getBoundingClientRect().right,
+    focused: document.activeElement === element,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(after.top).toBeCloseTo(before.top, 0);
+  expect(after.right).toBeLessThanOrEqual(320);
+  expect(after.scrollWidth).toBeLessThanOrEqual(320);
+  expect(after.focused).toBe(true);
+  expect(before.fontSize).toBeGreaterThanOrEqual(16);
 });

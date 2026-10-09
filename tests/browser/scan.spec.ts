@@ -26,16 +26,36 @@ test('real local OCR covers SAMPLE sensitive text', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Photo with permanent covers preview' })).toBeVisible();
 });
 
-test('real face, small portrait, QR, barcode and NER detectors', async ({ page }) => {
+test('real face, small portrait, QR, barcode and structured field detectors', async ({ page }) => {
   await page.goto('/');
   await enableAutomaticChecks(page);
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
   await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
   await expandDetails(page);
   await expect(page.getByText(/sensitive items found/)).toBeVisible({ timeout: 120_000 });
-  for (const category of ['face', 'qr_code', 'barcode', 'full_name', 'birthday', 'tin', 'phone', 'email', 'address']) {
+  for (const category of ['face', 'qr_code', 'barcode', 'full_name', 'birthday', 'tin', 'phone', 'email']) {
     await expect(page.locator(`[data-category="${category}"]`).first()).toBeVisible();
   }
+  await expect(page.locator('[data-category="possible_name"], [data-category="possible_location"]')).toHaveCount(0);
+});
+
+test('free-form model suggestions do not claim a verified name or home address', async ({ page }) => {
+  await page.goto('/');
+  await enableAutomaticChecks(page);
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 1100; canvas.height = 500;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'black'; ctx.font = '36px Arial';
+    ctx.fillText('Sarah lives in London and works in Paris.', 50, 180);
+    ctx.fillText('This is a fictional sentence for a privacy test.', 50, 280);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'fictional-text.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator('[data-category="possible_location"]').first()).toBeVisible();
+  await expect(page.locator('[data-category="address"], [data-category="full_name"]')).toHaveCount(0);
+  await expect(page.getByText(/model suggestions, not verified personal details/)).toBeVisible();
 });
 
 test('automatic-check failure keeps the photo available for manual covering', async ({ page }) => {
