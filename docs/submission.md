@@ -1,15 +1,19 @@
 # TAKIP — Submission Text (ready to paste)
 
-> Owner: Hermes (docs) · First written: 2026-10-09 16:2x Asia/Manila · Session 1
+> Owner: Hermes (docs) · Session 1, updated Session 2 (2026-10-09 16:46 Asia/Manila)
 > Every field required by PRD §15. Paste into the Cerebral Valley event form.
 > **Submit once — no edits or resubmission allowed.** Fill the `[BLANK]` fields first.
 
 ## Build status (honest — read before pasting)
 
-As of **2026-10-09 16:2x** the app is **not built yet** and `README.md` does not exist (see
-`docs/HERMES_NOTES.md`). The **models / technologies / APIs** lists below are the PRD §8–11
-plan. **Before submitting, replace them with the exact list from `README.md`**, which is the
-authoritative disclosure of what actually shipped. Do not submit a model the app doesn't run.
+As of **2026-10-09 16:46** the app is **partly built and verified** (photo input, on-device
+OCR, §7 pattern rules, solid covering, face / QR-barcode / NER detection, box merge; risk
+scoring implemented with unit tests). The review UI, touch-up, on-screen risk banner, export,
+live network counter, local-LLM summary and watermark are **not built yet** (Phase 4 in
+progress). `README.md` still does not exist, so the **authoritative** disclosure list is not
+written yet. Fields 7, 9 and 10 below are filled with what I could **verify in the code and
+lockfile**; when `README.md` exists, **reconcile against it** and do not submit a model the app
+does not run.
 
 ---
 
@@ -34,31 +38,45 @@ authoritative disclosure of what actually shipped. Do not submit a model the app
 ## 6. X / LinkedIn video post URL
 `[BLANK — human: paste the post URL; must tag Devin / Cognition and include #AppBuildersPH — see docs/social-post.md]`
 
-## 7. What runs locally (paste as-is, verify vs README)
-> **Everything.** OCR (Tesseract.js), face detection (MediaPipe), named-entity recognition
-> (Transformers.js), the risk-summary language model (WebLLM), QR/barcode detection,
-> pattern rules, covering, watermarking and export all run in the browser on the user's
-> device. No image, text or result is ever uploaded.
+## 7. What runs locally (verify vs the built app + README before pasting)
+> Everything the app does, it does on the user's device. Text reading (Tesseract.js), face
+> detection (MediaPipe), name/address recognition (Transformers.js NER), QR/barcode detection
+> (ZXing-WASM), the pattern rules and the covering all run in the browser — no image, text or
+> result is ever uploaded. The export (with metadata removed) and the watermark are also
+> designed to run locally.
+
+**State of the build at paste time:** OCR, faces, QR/barcode, NER, pattern rules and covering
+are **implemented and verified**. The metadata-stripping export and the watermark are
+**not in this build yet** — do not claim them unless they ship. The language model that writes
+the risk summary is an optional extra and is **not integrated**; there is no summary card in
+the app at all yet (neither LLM nor template).
 
 ## 8. What requires internet (paste as-is)
 > Only the **first load** of the app and the **one-time model download**. After that the full
 > core flow works in airplane mode. Nothing is uploaded at any time.
 
-## 9. Models used
-`[BLANK — human: copy the exact model names/versions/sources/licenses from README.md]`
-PRD §8 plan (verify before use):
-> - OCR — **Tesseract.js** (LSTM OCR), `eng` (+ `fil` if available), bundled locally
-> - Face detection — **MediaPipe Face Detector** (`@mediapipe/tasks-vision`, BlazeFace short-range)
-> - NER — a **quantized BERT-base NER model via Transformers.js** (ONNX)
-> - Risk summary — a small **0.5–1.5B instruct LLM via WebLLM** (4-bit), with a template fallback
-> - QR/barcode — `BarcodeDetector` API, fallback `jsQR` / `zxing-wasm` (not AI)
+## 9. Models used (filled from the lockfile + DECISIONS.md — reconcile with README.md)
 
-## 10. Technologies and frameworks
-`[BLANK — human: confirm against README.md]` PRD §11 plan:
-> React + Vite + TypeScript; `vite-plugin-pwa` (Workbox) for offline; Tesseract.js;
-> `@mediapipe/tasks-vision`; `@huggingface/transformers` (Transformers.js);
-> `@mlc-ai/web-llm`; HTML Canvas / OffscreenCanvas in Web Workers; Tailwind CSS (bundled, no
-> runtime CDN); static hosting for the first load.
+Actually integrated and running in the browser:
+
+> - **OCR — Tesseract.js 7.0.0** (with `tesseract.js-core` 7.0.0); English language data
+>   (`eng`, tessdata 4.0.0). Apache-2.0.
+> - **Face detection — MediaPipe `@mediapipe/tasks-vision` 1.1.0** + BlazeFace short-range
+>   float16 model (v1). Apache-2.0.
+> - **NER — Transformers.js 3.8.1** + `onnx-community/distilbert-NER-ONNX` (q8), base
+>   `dslim/distilbert-NER`. Apache-2.0.
+> - **QR/barcode — ZXing-WASM 3.1.5** (not AI). MIT.
+
+Chosen but **not yet integrated** (do not list as shipped unless it ships):
+
+> - **Risk-summary LLM — WebLLM 0.2.85** + `Qwen2.5-0.5B-Instruct-q4f16_1-MLC`.
+
+## 10. Technologies and frameworks (verified from package.json / lockfile)
+
+> React 19.3.0 + Vite 8.3.4 + **TypeScript 6.0.3**; `vite-plugin-pwa` 2.0.0 (Workbox) for
+> offline; Tailwind CSS 4.3.3 (bundled, no runtime CDN); Tesseract.js; `@mediapipe/tasks-vision`;
+> `@huggingface/transformers` (Transformers.js) with ONNX Runtime Web; `zxing-wasm`; HTML Canvas
+> / OffscreenCanvas inside Web Workers; static hosting for the first load.
 
 ## 11. APIs and cloud services
 > **None at runtime.** No cloud AI API, no analytics, no telemetry, no runtime CDNs or remote
@@ -67,8 +85,10 @@ PRD §8 plan (verify before use):
 
 ## 12. Existing code and assets
 > None reused — TAKIP is a **new project created during the hackathon**. All third-party
-> libraries and models are open-source and disclosed above. *(If any starter template or
-> asset was used, disclose it here.)*
+> libraries and models are open-source and disclosed above. One generated asset is committed for
+> automated tests: `tests/assets/sample-synthetic-face.png`, a **fictional** portrait produced
+> with OpenAI's image tool (no real person, no government-ID design). *(If any starter template
+> or other asset was used, disclose it here.)*
 
 ## 13. AI development tools (disclose — paste as-is)
 > This product was **built** with AI development tools, none of which are part of the product
@@ -78,6 +98,7 @@ PRD §8 plan (verify before use):
 >   and pitch content.
 > - **An orchestrator script** — ran the agents, made checkpoints, and handled git commits
 >   and pushes.
+> - OpenAI's image tool generated the single **synthetic** test fixture noted in field 12.
 > These tools helped build TAKIP; the shipped app uses only open-source models running on the
 > user's own device.
 
@@ -97,12 +118,12 @@ PRD §8 plan (verify before use):
 - [ ] Public GitHub repo — links and is PUBLIC
 - [ ] Demo video — links
 - [ ] X / LinkedIn post — links, tags Devin/Cognition, includes #AppBuildersPH
-- [ ] What runs locally (field 7) — matches the built app
+- [ ] What runs locally (field 7) — matches the built app (no unbuilt feature claimed)
 - [ ] What requires internet (field 8)
-- [ ] Models used (field 9) — copied exactly from README.md
+- [ ] Models used (field 9) — reconciled with README.md, only shipped models listed
 - [ ] Technologies and frameworks (field 10) — matches the built app
 - [ ] APIs and cloud services (field 11)
-- [ ] Existing code and assets (field 12)
+- [ ] Existing code and assets (field 12) — synthetic fixture disclosed
 - [ ] AI development tools (field 13)
 - [ ] "Why local" answer (field 14)
 - [ ] Submitted **once** — no edits

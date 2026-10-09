@@ -1,84 +1,82 @@
-# HERMES NOTES — documentation session 1
+# HERMES NOTES — documentation session 2 (update)
 
-> Written: 2026-10-09 16:2x (Asia/Manila) · Agent: Hermes (DeepSeek V4.1 Flash) · Docs role.
-> This is a handover note: what I changed, decisions I made, and what the **human** must do.
+> Written: 2026-10-09 16:46 (Asia/Manila) · Agent: Hermes (DeepSeek V4.1 Flash) · Docs role.
+> This **supersedes session 1**. It is the handover note: what changed, what I re-verified, and
+> what the **human** must still do.
 
-## ⚠️ The most important thing: no app code exists yet
+## ⚠️ Correction to session 1: the app IS being built now
 
-The build agent (Codex) has **produced nothing** across all four sessions so far. Every
-session exits almost immediately with the same error:
+Session 1 said "no app code exists yet" because the builder was dying with
+`error: unexpected argument '--full-auto' found`. **That is out of date.** The builder now runs,
+and `PROGRESS.md` + `DECISIONS.md` record real, verified work:
 
-```
-error: unexpected argument '--full-auto' found
-Usage: codex exec [OPTIONS] [PROMPT]
-```
+- **Phase 1 — PASSED:** Vite + React + TS + PWA scaffold, camera/gallery photo input (F1),
+  file validation, WebGPU detection.
+- **Phase 2 — PASSED:** Tesseract.js OCR with word positions (F2), the PRD §7 pattern rules
+  (F3), and solid, flattened cover rendering (F6). 12 unit tests + lint + types + build pass;
+  Chromium ran real OCR on a generated SAMPLE image.
+- **Phase 3 — PASSED:** MediaPipe BlazeFace face detection (F4), ZXing-WASM QR/barcode (F5),
+  DistilBERT NER via Transformers.js (F3), and box merge — each verified in isolated Chromium
+  runs against synthetic fixtures. The risk-scoring module is implemented with unit tests.
+- **Phase 4 — IN PROGRESS:** the review / touch-up / risk / export UI is not finished.
 
-(`logs/codex-001.log` … `logs/codex-004.log`; the orchestrator records "builder exited fast
-with code 2" in `ORCHESTRATOR_STATUS.md`.)
+What the running app does **today**: the home screen (Take Photo / Choose Photo, the
+"On-device · 0 uploads" badge) → the worker pipeline scans → a **covered preview** plus a list
+of detected items. What it does **not** have yet: a before/after toggle, an on-screen risk
+banner, the touch-up tool, the watermark, the export step, a **live** network counter, or any
+local-LLM summary. `README.md` and `eval/results.md` still do not exist.
 
-Cause: `orchestrator.json` configures the builder as
-`["codex","exec","--full-auto","-c","sandbox_workspace_write.network_access=true","{prompt}"]`,
-but the installed Codex CLI no longer accepts `--full-auto`. So the repo still contains only
-`PRD.md`, the orchestrator kit and these docs — **no `src/`, `public/`, `tests/`, `README.md`,
-`PROGRESS.md`, `DECISIONS.md` or `eval/results.md`.**
+## What I did this session
 
-**HUMAN ACTION REQUIRED (I am forbidden from editing `orchestrator.json`):**
-1. Run `codex exec --help` and pick the correct non-interactive flag for your version.
-2. Edit the `codex.command` line in `orchestrator.json`, e.g. drop the flag entirely or use
-   `["codex","exec","--dangerously-bypass-approvals-and-sandbox","{prompt}"]` (keep `{prompt}`
-   last — the script substitutes it). Verify with `python orchestrate.py --check`, then restart
-   the orchestrator so a build session actually runs.
-   → Until this is fixed, **nothing will be built**, and the pitch/video/submission have
-   nothing to demonstrate. This is the critical path.
+Boundaries unchanged: I touched only files under `docs/` and the single file
+`eval/test-plan.md`. No git commands, no installs, no servers, no source edits.
 
-## What I created this session
+I re-read `PRD.md`, `PROGRESS.md`, `DECISIONS.md`, the whole `src/` and `tests/` tree, and every
+doc, then corrected each claim the app can no longer honestly support:
 
-Strict boundaries respected: I only created files under `docs/` and the single file
-`eval/test-plan.md`. I ran **no git commands**, installed nothing, started no servers.
-
-| File | What it is |
+| File | Change |
 |---|---|
-| `eval/test-plan.md` | 30 test cases covering **every** PRD §7 category, with document type, condition (N/A/G/L), expected covers, expected risk and an **empty Result column**. Includes a synthetic test-set inventory (S1–S20), a §7-category→case coverage matrix, false-cover control (TC-29) and the safety-net case (TC-28). Synthetic/team-made data only. |
-| `docs/demo-script.md` | 5-minute live pitch (PRD §16.1) with exact spoken lines + on-screen actions per beat; ~1-minute video shot list (PRD §16.2); demo-safety rules (PRD §16.3); a printable live-demo checklist. |
-| `docs/judge-qa.md` | The 12 hardest judge questions, each tagged to a judging criterion (usefulness / local AI / execution / innovation / demo), with short honest answers and a do/don't list. |
-| `docs/submission.md` | Every PRD §15 field ready to paste, with team members and URLs left as clearly marked `[BLANK]` fields, plus the disclosure list (Codex, Hermes on DeepSeek V4.1 Flash, orchestrator script) and the §15.6 "why local" answer. |
-| `docs/social-post.md` | X post (+ optional 3-tweet thread) and a LinkedIn post for the demo video; both tag Devin/Cognition and include **#AppBuildersPH**; posting checklist. |
-| `docs/HERMES_NOTES.md` | This file. |
+| `eval/test-plan.md` | Banner replaced with the real status; all 30 cases remain **NOT YET RUN** with a blank Result column. Expected values corrected to verified behaviour: QR codes always score **High** (conservative — PRD P2 document classification is not implemented); an unlabeled long digit run scores **Medium**; reference/transaction numbers are **detected but left uncovered by default** (PRD §7 optional-cover rule). |
+| `docs/demo-script.md` | Banner corrected; every beat tagged **BUILT** or **NOT BUILT YET** so nobody speaks a feature the app cannot show. |
+| `docs/judge-qa.md` | Banner corrected; Q5/Q6/Q7/Q10 now name what actually runs; no results figure is quoted (no `results.md`). |
+| `docs/submission.md` | Fields 7, 9, 10 rewritten to the real, verified models/versions; watermark/summary/export marked not-yet-built; the synthetic face fixture disclosed; "README still missing" warning kept. |
+| `docs/social-post.md` | Banner corrected; posts describe only what exists (or clearly framed goals), with a hard "don't publish a feature you can't show" rule. |
+| `docs/HERMES_NOTES.md` | This file — rewritten for session 2. |
 
-## Decisions I made (and why)
+## Verified facts worth reusing
 
-- **Honest build-status banner on every file.** Because nothing is built, every doc opens
-  with a "Build status" note stating the app does not exist yet, and every claim is tied to
-  the PRD design rather than to a shipped feature. This satisfies the rule *"never claim
-  features that don't exist"* while still delivering the deliverables the orchestrator
-  expects on session 1.
-- **No invented results.** `eval/test-plan.md` says every case is "NOT YET RUN" and the Result
-  column is blank. No recall %, scan time or "0 requests" figure is stated anywhere as fact;
-  the docs tell the writer to quote only `eval/results.md`.
-- **Models/technology lists are marked as the PRD plan**, with an instruction to replace them
-  with the exact list from `README.md` once it exists (and not to submit a model the app
-  doesn't run).
-- **Fake test data is written as obviously fake** (e.g. "JUAN SAMPLE DELA CRUZ", `0917-000-0000`,
-  test card `4111 1111 1111 1111`) and flagged "must not copy a real government ID design"
-  per PRD §12.1.
-- **X handle note:** Cognition's live X handle is now **@cognition** (`@cognition_labs`
-  redirects). The social post says to confirm the tag resolves before posting.
+- **Versions:** React 19.3.0, Vite 8.3.4, TypeScript **6.0.3 installed** (the registry "latest"
+  7.0.2 is *not* what the lock resolves to), Tailwind 4.3.3, vite-plugin-pwa 2.0.0.
+- **OCR:** Tesseract.js 7.0.0 (core 7.0.0), English data from the 4.0.0 tessdata mirror;
+  Apache-2.0.
+- **Faces:** `@mediapipe/tasks-vision` 1.1.0 + BlazeFace short-range float16 v1
+  (229,746 bytes); Apache-2.0; must load via the ES-module `FilesetResolver` loader — the
+  classic loader throws `ModuleFactory not set` in a module worker.
+- **NER:** Transformers.js **3.8.1** (4.3.1 failed in-browser), model
+  `onnx-community/distilbert-NER-ONNX` (q8, 65,772,734 bytes), base `dslim/distilbert-NER`
+  (Apache-2.0). English CoNLL; Filipino names/addresses lean on label-proximity rules.
+- **QR:** ZXing-WASM 3.1.5 (966,895 bytes), MIT, always run through the local worker.
+- **LLM — chosen, NOT integrated:** WebLLM 0.2.85 + Qwen2.5-0.5B-Instruct-q4f16_1-MLC.
+- **Test fixture:** `tests/assets/sample-synthetic-face.png` — a fictional face generated with
+  OpenAI's image tool (SHA-256 `831872d94e751b322d705e31d9395467611b75226b02abdb334027148a0e0c0f`);
+  no real person, no government design.
 
-## What still needs doing (later sessions / final run)
+## What later sessions must do
 
-- **Every doc must be re-checked against the built app** once Codex actually ships code, and
-  against `README.md` / `eval/results.md` when those exist. Later Hermes sessions should:
-  update `submission.md` fields 7–10 to match `README.md`; replace "NOT YET VERIFIED" markers
-  in `demo-script.md`; and quote real numbers from `eval/results.md` in `judge-qa.md`.
-- `eval/results.md` is **not** mine to write (PRD assigns it to the build/human side; my
-  boundary is `docs/` + `eval/test-plan.md`). The plan tells the human how to roll results up
-  into it.
+1. When Phase 4 lands: re-check every doc against the running app.
+2. When `README.md` exists: replace the model/tech lists in `submission.md` fields 9–10 with
+   the README's exact list.
+3. When `eval/results.md` exists: quote its real numbers in `judge-qa.md` and `demo-script.md`
+   Beat 5 — and nowhere else.
+4. When the full flow (review → touch-up → watermark → export) exists: flip the demo beats from
+   NOT BUILT YET to BUILT and re-time them.
 
 ## Human to-do list (short)
 
-1. **Fix the Codex command in `orchestrator.json`** (above) — blocks everything.
-2. Once the app builds: run `eval/test-plan.md`, fill the Result column, and produce
-   `eval/results.md`.
-3. Fill the `[BLANK]` fields in `docs/submission.md` (team, repo URL, video URL, post URL).
-4. Record the video from `docs/demo-script.md` Part B; post using `docs/social-post.md`.
-5. Before submitting: confirm the repo is **public** and contains **no real personal data**.
+1. Finish Phase 4 (review UI, touch-up, risk banner, export, live network counter, watermark).
+2. Write `README.md` with the full disclosure list.
+3. Run `eval/test-plan.md`, fill the Result column, and produce `eval/results.md` — misses
+   included.
+4. Fill the `[BLANK]` fields in `docs/submission.md` (team, repo URL, video URL, post URL).
+5. Record the video from `docs/demo-script.md` Part B; post via `docs/social-post.md`.
+6. Before submitting: repo **public**, **no real personal data** anywhere in it.

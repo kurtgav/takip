@@ -1,141 +1,103 @@
-# TAKIP — Test Plan (30 cases)
+# TAKIP — Human-QA Test Plan (30 cases)
 
-> Owner: Hermes (docs) · First written: 2026-10-09 16:2x Asia/Manila · Session 1
-> Companion to `PRD.md`. Results go in this file (fill the **Result** column) and the
-> headline numbers go in `eval/results.md` (owned by the builder).
+> Owner: Hermes (docs) · Session 1, updated Session 2 (2026-10-09 16:46 Asia/Manila)
+> Purpose: a **person** runs these 30 cases against the real app and records what actually
+> happens. The **Result** column is filled **by hand** — nothing here is pre-recorded, and no
+> result is asserted as passing.
+> ⚠️ **Re-check before use:** the app is still changing (Phase 4 in progress). Confirm expected
+> values against the running build and the latest `DECISIONS.md` before treating any row as a
+> requirement.
 
 ## Build status (honest)
+Implemented and verified so far: photo input, on-device OCR, the §7 pattern rules, solid
+covering, MediaPipe face detection, ZXing QR/barcode, Transformers.js NER, and box merge. The
+review UI (before/after, risk banner, chips, touch-up), export with metadata stripping, the
+**live** network counter, the local-LLM summary and the watermark are **not built yet**. So:
+cases that check the **detection + covering** are runnable now; cases whose "Expected result"
+names the risk banner, touch-up, watermark or "0 requests" counter **cannot pass yet** — mark
+them **BLOCKED (feature not built)**, not failed.
 
-As of **2026-10-09 16:2x (Asia/Manila)** the TAKIP application has **not been built yet**:
-the repo contains only `PRD.md`, the orchestrator kit and this docs set. The one build
-agent (Codex) has exited on every session so far with an invalid-flag error
-(`codex exec --full-auto` is not accepted by the installed Codex CLI — see
-`logs/codex-00N.log`). No `src/`, `tests/`, `README.md`, `PROGRESS.md`, `DECISIONS.md` or
-`eval/results.md` exists.
+## How to record
+1. Run each case on the built app (Chrome, desktop first, then an Android phone).
+2. Fill **Result** with **PASS / FAIL / BLOCKED** and one line of what you saw.
+3. If a case **FAILS**, that is a finding — record it; do not hide it.
+4. Cases that need a specific fixture say so in **Setup**.
+5. Copy the finished table's failures into `eval/results.md` (which does not exist yet).
 
-Consequence for this plan: **every test case below is "NOT YET RUN".** The plan states what
-*should* be covered once the app runs; it does **not** record results. Do not report any
-row as passing until the app exists and a human has actually run it.
+## Conventions
+- **Fixtures are synthetic.** Use the committed sample and your own clearly-fake documents.
+  Never a real ID, never a real person's number.
+- **Cover** = solid black rectangle with no readable pixels.
+- **Detected** = flagged or covered. **Uncovered** = still readable.
+- Risk levels are the PRD §8 bands: **High** (card/account number, QR on an ID, ≥2 strong
+  categories, or any strong under glare), **Medium** (name+phone, address alone, face+name, or
+  several minor categories), **Low** (single minor field or clean).
+- **Document titles, agency names and field labels** (e.g. "REPUBLIC OF THE PHILIPPINES",
+  "Name") are **never** covered by default (PRD §7) — the photo must stay useful. Verify this
+  in TC-02/TC-03.
 
-## What this test set is
+### Three verified-behaviour notes that override the PRD wording
+- **QR codes always score High.** PRD P2 document-classification (ID vs receipt) is not
+  implemented, so the app is deliberately conservative: *any* QR/barcode pushes risk to High.
+- **Reference / transaction numbers are detected but left UNCOVERED by default** (PRD §7
+  optional-cover rule — the user may add a cover). So "reference no." appears under
+  **Detected** but **not** under **Expected covers**.
+- **Unknown long digit runs score Medium** (PRD §8 safety-net band, P9).
 
-- **Synthetic / team-made data only.** No real IDs, no real screenshots, no real personal
-  data — ever, in this file or in the repo.
-- Every image is built by the team and clearly marked **SAMPLE**; details are invented and
-  the design must **not** copy any real government document (PRD §12.1).
-- 30 cases cover **every sensitive-data category in PRD §7**, across the document types and
-  shooting conditions the demo will face.
+---
 
-## Condition codes
+## Test cases
 
-| Code | Condition | How to shoot |
-|---|---|---|
-| **N** | Normal | Even light, phone flat over the document, sharp text |
-| **A** | Angled | ~30–45° tilt, mild perspective skew |
-| **G** | Glare | Bright point/reflection over part of the text (flash or window) |
-| **L** | Low light | Dim indoor light, visible sensor noise |
+| # | Case | Setup (synthetic) | Expected detections | Expected covers | Expected risk | Expected UX | Result |
+|---|---|---|---|---|---|---|---|
+| TC-01 | Clean landscape photo | Garden photo, no text/faces | None | None | Low | "Nothing sensitive found." *(banner not built yet)* | |
+| TC-02 | PH Driver's License | Fake DL, clearly-marked sample | Name, DOB, license no., address, face | All of those | High | License no. unreadable | |
+| TC-03 | PH National ID (PhilSys) | Fake PhilSys-style card | Name, DOB, ID no., face, address | All of those | High | ID no. unreadable | |
+| TC-04 | Passport data page | Fake passport page | Name, DOB, passport no., face, country | All of those | High | MRZ bottom lines covered | |
+| TC-05 | ID with QR code | Fake ID + QR | ID fields + QR | QR + ID fields | High | QR not scannable after cover | |
+| TC-06 | QR-only card | Business card, just a QR | QR | QR | High | QR covered | |
+| TC-07 | UMID card | Fake UMID | Name, CRN/UMID no., DOB, face | All of those | High | CRN unreadable | |
+| TC-08 | Postal ID | Fake postal ID | Name, address, ID no., face | All of those | High | ID no. unreadable | |
+| TC-09 | TIN card | Fake TIN, format 123-456-789-000 | Name, TIN | Both | High | TIN unreadable | |
+| TC-10 | SSS / Pag-IBIG / PhilHealth card | Fake SSS, Pag-IBIG or PhilHealth card | Name, member no., face | All of those | High | Member no. unreadable | |
+| TC-11 | Bank statement | Fake statement, amounts visible | Acct no., name, address | Acct no., name, address | High | Acct no. unreadable | |
+| TC-12 | Credit/debit card | Fake card, 0000-0000-0000-0000 | Card no., name, expiry, CVV area | All of those | High | Card no. unreadable | |
+| TC-13 | Mobile screenshot (GCash) | Fake screenshot with phone + balance | Phone, any acct/ref no., name | Phone, name | High | Phone unreadable | |
+| TC-14 | Chat screenshot | Fake chat: phone + email | Phone, email | Both | Medium | Both unreadable | |
+| TC-15 | Group photo | 4 faces, no text | 4 face boxes | All 4 covered | High | Every face covered | |
+| TC-16 | Events photo | 3 faces + background text | 3 faces | Faces covered | Medium | Faces covered | |
+| TC-17 | Receipt (parcel) | Fake receipt, no card | Name, address, order no. | Name, address | Medium | Order no. covered? (see note) | |
+| TC-18 | Receipt with card | Fake receipt, last-4 + ref no. | Card no., ref no. | Card no. (ref no. optional) | High | Card no. unreadable | |
+| TC-19 | Glare on card | Card no. under glare | Best-effort card no./name | Any found | High | Best-effort; weak = uncovered | |
+| TC-20 | Low light on ID | ID in low light, half-shadowed | Some fields only | Those found | High | Unclear = uncovered; state it | |
+| TC-21 | Rotated ID 90° | ID sideways | If OCR handles rotation | Those found | High | Note: rotation may reduce detection | |
+| TC-22 | ID at an angle | Skewed ID | Some fields | Those found | High | Skew may reduce detection | |
+| TC-23 | Small text | ID with tiny footer text | Best-effort | Any found | Medium | Tiny text may be mixed | |
+| TC-24 | Business card | Name, mobile, email, address | All four | All four | Medium | All unreadable | |
+| TC-25 | Junior's ID (school) | Fake student ID, name, school | Name, school, face | Name, face (school optional) | Medium | Name unreadable | |
+| TC-26 | ID + handwritten note | Printed ID + handwriting | Printed fields + QR | Those found | High | Handwriting may remain; flag it | |
+| TC-27 | Full personal set | Name, mobile, email, address, QR | All of them | All of them | High | Nothing readable | |
+| TC-28 | Just a number (no label) | Blank card, 9+ digit number | The digit run (safety net) | The digit run | Medium | Number unreadable | |
+| TC-29 | Clean, text-free | Blank wallpaper photo | None | None | Low | "Nothing sensitive found." | |
+| TC-30 | Blurry ID | Out-of-focus ID | Little/nothing | Any found | Low | Must warn text is unclear | |
 
-## Test set inventory (create these synthetic assets first)
+---
 
-All values are fake. Put working copies in `eval/private/` (git-ignored). Put only
-cover/blur samples in the repo if a screenshot is needed.
+## Edge cases to watch (record findings here)
+- **TC-17 / TC-18 (receipts).** No card → Medium; card present → High. **Reference/transaction
+  numbers are detected but not covered by default** — confirm the app leaves them readable and
+  offers a manual cover.
+- **TC-19 (glare).** Any strong field under glare should still read **High**; verify the risk
+  does not drop just because detection was hard.
+- **TC-21 / TC-22 (rotation, angle).** These are known-hard for OCR; expect reduced detection.
+  Record the **actual** miss rate — do not round up.
+- **TC-26 (handwriting).** Expect handwriting to survive. This is a documented limitation, not
+  a bug — record it in `eval/results.md`.
+- **TC-30 (blurry).** The app should say text is unclear rather than silently passing.
 
-| Asset | Document type | Fake content to include | Used by |
-|---|---|---|---|
-| S1 | SAMPLE ID card, front | ID photo (face), "JUAN SAMPLE DELA CRUZ", DOB `1994-03-12`, address "12 Sampaguita St., Brgy. Sample, Quezon City", PhilSys-style `1234-5678-9012-3456`, email `juan.sample@example.com` | TC-01…04, TC-30 |
-| S2 | SAMPLE ID card, back | address again, `QR` code, a barcode, an unlabeled 9+ digit "document control no." | TC-05, TC-06 |
-| S3 | SAMPLE driver's-license-style card | face, name, DOB, address, license no. `A01-23-456789`, mobile `0917-000-0000` | TC-07, TC-08 |
-| S4 | SAMPLE passport-style data page | face, name, DOB, passport no. `P1234567`, place of birth, MRZ-style line | TC-09, TC-10 |
-| S5 | SAMPLE employment / rental form | name, DOB, address, `TIN 123-456-789-000`, `SSS 12-3456789-0`, `PhilHealth 12-345678901-2`, `Pag-IBIG 1234-5678-9012`, mobile, email | TC-11, TC-12 |
-| S6 | SAMPLE UMID-style card | face, name, DOB, `CRN/UMID 1234-5678901-2`, address | TC-13 |
-| S7 | SAMPLE TIN ID card | name, `TIN 123-456-789`, address, DOB | TC-14 |
-| S8 | SAMPLE PhilHealth card | name, `PhilHealth 12-345678901-2`, DOB | TC-15 |
-| S9 | SAMPLE Pag-IBIG card | name, `Pag-IBIG MID 1234-5678-9012`, DOB | TC-16 |
-| S10 | SAMPLE SSS card | name, `SSS 12-3456789-0`, DOB | TC-17 |
-| S11 | Store receipt | card line `4111 1111 1111 1111` (test card), `Ref No. 123456`, QR, store name | TC-18, TC-19 |
-| S12 | Bank transfer screenshot | sender name, account no. `1234-5678-9012`, `Ref No. 987654321`, mobile on the notice | TC-20 |
-| S13 | E-wallet transfer screenshot | name, mobile `0917-000-0000`, account/mobile no., `Ref No. 000123456789` | TC-21, TC-22 |
-| S14 | Marketplace chat screenshot | buyer mobile `0917-000-0000`, delivery address, buyer name | TC-23, TC-24 |
-| S15 | Online-lending app screenshot | name, mobile, account no., `Ref No.`, email | TC-25 |
-| S16 | Courier / parcel label | name, address, mobile, QR/barcode, tracking no. `PH0000000000` | TC-26 |
-| S17 | Business card / contact screenshot | name, mobile, email, address, QR | TC-27 |
-| S18 | "Safety-net" note | a lone unlabeled 9+ digit number on plain paper, no label | TC-28 |
-| S19 | Clean control | a product/landscape photo with brand text only — **no personal data** | TC-29 |
-| S20 | "Hard" combined card | S1 content plus mobile + email, shot badly | TC-30 |
-
-## The 30 test cases
-
-`Expected covers` = what the app should permanently cover (solid fill / heavy pixelation,
-flattened into the export — PRD F6). `Risk` is the expected risk level per PRD §8.2.
-**Result** is left blank for the human: record `PASS` / `FAIL`, the risk shown, the items
-actually covered, and any misses.
-
-| # | Document type | Condition | Sensitive items present | Expected covers | Risk | Result |
-|---|---|---|---|---|---|---|
-| TC-01 | SAMPLE ID front (S1) | N | face, full name, birthday, address, PhilSys 16-digit | Face · Full name · Birthday · Address · PhilSys number | High | |
-| TC-02 | SAMPLE ID front (S1) | A | same as TC-01 | same as TC-01 | High | |
-| TC-03 | SAMPLE ID front (S1) | G | same as TC-01 | same as TC-01 | High | |
-| TC-04 | SAMPLE ID front (S1) | L | same as TC-01 | same as TC-01 | High | |
-| TC-05 | SAMPLE ID back (S2) | N | QR code, barcode, address, unlabeled 9+ digits | QR/barcode · Address · Safety-net digits | High | |
-| TC-06 | SAMPLE ID back (S2) | G | QR code, address | QR/barcode · Address | High | |
-| TC-07 | Driver's-license style (S3) | N | face, name, birthday, address, license no., mobile | Face · Full name · Birthday · Address · DL number · Mobile | High | |
-| TC-08 | Driver's-license style (S3) | A | same as TC-07 | same as TC-07 | High | |
-| TC-09 | Passport data page (S4) | N | face, name, birthday, passport no. | Face · Full name · Birthday · Passport number | High | |
-| TC-10 | Passport data page (S4) | L | same as TC-09 | same as TC-09 | High | |
-| TC-11 | Employment / rental form (S5) | N | name, birthday, address, TIN, SSS, PhilHealth, Pag-IBIG, mobile, email | Full name · Birthday · Address · TIN · SSS · PhilHealth · Pag-IBIG · Mobile · Email | High | |
-| TC-12 | Employment / rental form (S5) | A | same as TC-11 | same as TC-11 | High | |
-| TC-13 | UMID-style card (S6) | N | face, name, birthday, UMID/CRN no., address | Face · Full name · Birthday · UMID/CRN · Address | High | |
-| TC-14 | TIN ID card (S7) | N | name, TIN, address, birthday | Full name · TIN · Address · Birthday | High | |
-| TC-15 | PhilHealth card (S8) | N | name, PhilHealth no., birthday | Full name · PhilHealth · Birthday | High | |
-| TC-16 | Pag-IBIG card (S9) | N | name, Pag-IBIG MID, birthday | Full name · Pag-IBIG MID · Birthday | High | |
-| TC-17 | SSS card (S10) | N | name, SSS no., birthday | Full name · SSS · Birthday | High | |
-| TC-18 | Store receipt (S11) | N | card/account number, ref/transaction no., QR | Card/account no. · Reference no. · QR/barcode | High | |
-| TC-19 | Store receipt (S11) | G | card/account number, ref no. | Card/account no. · Reference no. | Medium | |
-| TC-20 | Bank transfer screenshot (S12) | N | name, account number, ref no. | Full name · Account no. · Reference no. | High | |
-| TC-21 | E-wallet transfer screenshot (S13) | N | name, mobile, account no., ref no. | Full name · Mobile · Account no. · Reference no. | High | |
-| TC-22 | E-wallet transfer screenshot (S13) | L | same as TC-21 | same as TC-21 | High | |
-| TC-23 | Marketplace chat screenshot (S14) | N | mobile, delivery address, buyer name | Mobile · Address | Medium | |
-| TC-24 | Marketplace chat screenshot (S14) | G | mobile, address | Mobile · Address | Medium | |
-| TC-25 | Lending app screenshot (S15) | N | name, mobile, account no., ref no., email | Full name · Mobile · Account no. · Reference no. · Email | High | |
-| TC-26 | Courier / parcel label (S16) | N | name, address, mobile, QR/barcode, tracking no. | Full name · Address · Mobile · QR/barcode · Reference no. · Safety-net digits | High | |
-| TC-27 | Business card screenshot (S17) | N | name, mobile, email, address, QR | Full name · Mobile · Email · Address · QR/barcode | Medium | |
-| TC-28 | Safety-net note (S18) | N | a lone 9+ digit number, no label | Safety-net cover (on by default; user can uncover) | Low | |
-| TC-29 | Clean control (S19) | N | **none** (brand/logo text only) | **none** — must not cover brand text (false-cover check) | Low | |
-| TC-30 | "Hard" combined card (S20) | A + L | face, name, birthday, address, PhilSys, mobile, email | Face · Full name · Birthday · Address · PhilSys · Mobile · Email | High | |
-
-## Coverage check — PRD §7 category → cases
-
-| PRD §7 category | Covered by |
-|---|---|
-| Face | TC-01, 07, 09, 13, 30 |
-| Full name | TC-01, 07, 09, 11, 13, 14, 15, 16, 17, 20, 21, 25, 26, 27, 30 |
-| Birthday | TC-01, 07, 09, 11, 13, 14, 15, 16, 17, 30 |
-| Address | TC-01, 05, 07, 11, 13, 14, 23, 24, 26, 27, 30 |
-| PhilSys / National ID number | TC-01, 30 |
-| TIN | TC-11, 14 |
-| SSS number | TC-11, 17 |
-| UMID / CRN | TC-13 |
-| PhilHealth number | TC-11, 15 |
-| Pag-IBIG MID | TC-11, 16 |
-| Driver's license number | TC-07, 08 |
-| Passport number | TC-09, 10 |
-| Mobile number | TC-07, 11, 21, 22, 23, 24, 25, 26, 27, 30 |
-| Card / account number | TC-18, 19, 20, 21, 22, 25 |
-| Reference / transaction number | TC-18, 19, 20, 21, 25, 26 |
-| Email address | TC-11, 25, 27, 30 |
-| QR code / barcode | TC-05, 06, 18, 26, 27 |
-| Safety net (9+ unlabeled digits) | TC-05, 26, 28 |
-
-## How to run and record
-
-1. Create the synthetic assets (S1–S20) and store working copies in `eval/private/`.
-2. For each case: load the image in TAKIP, run the scan, and compare what was covered
-   against **Expected covers**. For TC-29 confirm nothing is covered.
-3. In the **Result** cell write: `PASS`/`FAIL`, the risk level the app showed, the items
-   actually covered, and every miss or false cover.
-4. Roll up into `eval/results.md` (PRD §12): sensitive-item recall %, false covers per
-   photo, scan time, and the 0-network-request check. **Report misses honestly.**
-
-> Reminder: this plan is written against the PRD design. Re-check every "Expected covers"
-> value against the shipped app once it exists, because the built behaviour is the only
-> truth for the submission.
+## Metrics to compute from the filled table (for `eval/results.md`)
+- **Detection rate** = cases with the expected cover ÷ total runnable cases.
+- **False-cover rate** = clean cases (TC-01, TC-29) that got an unnecessary cover.
+- **Time to scan** (seconds), median and worst case, per device.
+- **Misses that matter** — list every case where a *strong* field stayed readable. These go in
+  the write-up, not just a clean summary.

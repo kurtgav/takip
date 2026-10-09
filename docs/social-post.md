@@ -1,99 +1,67 @@
-# TAKIP — Social Posts (X + LinkedIn)
+# TAKIP — Social Post(s) for the #AppBuildersPH campaign
 
-> Owner: Hermes (docs) · First written: 2026-10-09 16:2x Asia/Manila · Session 1
-> For the demo video. Both posts **tag Devin / Cognition** and include **#AppBuildersPH**.
-> Replace `[VIDEO LINK]`, `[REPO LINK]` and `[TEAM HANDLES]` before posting.
+> Owner: Hermes (docs) · Session 1, updated Session 2 (2026-10-09 16:46 Asia/Manila)
+> Rules: post the **video**, tag **Devin / Cognition**, include **#AppBuildersPH**.
+
+## Build status (honest — read first)
+As of **2026-10-09 16:46** the app is **partly built**: on-device OCR, pattern rules, solid
+covering, face / QR-barcode / NER detection all work; the review UI, touch-up, risk banner,
+export, live network counter, local-LLM summary and watermark are **not built yet**, and
+`eval/results.md` does not exist. **Post only what the video actually shows.** If the video
+skips a beat (see `demo-script.md`), the post must skip it too. When in doubt, cut the claim.
+
+---
+
+## Option 1 — X (main post)
+
+> Your ID photo? It's leaking more than you think. 🔒
+> TAKIP finds your ID number, birthday, face & QR — and covers them before you share.
+> 100% on-device. Works in airplane mode. Your photo never leaves your phone. 📵
+> @devingo #AppBuildersPH
+
+*(This is the "detection + covering" story, which the build already does. Nothing here claims
+the summary, watermark or export.)*
+
+## Option 2 — X (builder-story angle)
+
+> We built TAKIP for @devingo #AppBuildersPH: an on-device privacy filter.
+> OCR, face, QR & name detection all run in the browser. No cloud. No uploads.
+> Blur before you share. 🛡️
+
+## Option 3 — LinkedIn (longer)
+
+> **TAKIP — "Blur before you share."**
 >
-> Handles: on X, Cognition is **@cognition** (the older **@cognition_labs** now redirects).
-> Devin's tag is available via Cognition. On LinkedIn, tag the **Cognition** company page
-> (and any Devin page the account search offers). Confirm the tag resolves before posting.
-
-## Build status (honest)
-
-As of **2026-10-09 16:2x** the app is **not built yet** (see `docs/HERMES_NOTES.md`). These
-posts advertise the **demo video**, so do not publish until the video is recorded and the
-features shown actually work. If a feature is cut, cut it from the post too.
-
----
-
-## X (Twitter)
-
-### Main post (single tweet)
-
-```
-Strangers ask for your ID to “verify” a deal. Send it once and they keep it forever.
-
-TAKIP uses local AI to auto-cover your ID number, face, birthday, address & account numbers before you share — 100% on-device, works in airplane mode ✈️
-
-#AppBuildersPH @cognition
-
-[VIDEO LINK]
-```
-
-### Optional thread (post as a reply chain if you want more reach)
-
-```
-1/ We built TAKIP for #AppBuildersPH: a pre-share privacy filter for IDs, receipts and payment screenshots. The whole point — your original photo NEVER leaves your phone. 📵
-
-2/ Everything runs on-device: OCR (Tesseract.js), face detection (MediaPipe), name/address recognition (Transformers.js) and a small local LLM (WebLLM) that explains the risk in plain language. No cloud. No uploads. 0 network requests while processing.
-
-3/ Turn on airplane mode, photograph your ID, and watch the sensitive items get covered, explained and watermarked. Blur before you share.
-
-Repo: [REPO LINK]
-Built with OpenAI Codex + a Hermes agent (DeepSeek V4.1 Flash). Thanks @cognition 🧵
-```
-
-> Keep the main post **under X's 280-character limit** and the thread under 280 per tweet.
-> Trim the repo/credit lines if needed.
+> People hand over photos of their IDs every day. Those photos carry an ID number, a birthday,
+> an address, a face, and often a QR code.
+>
+> TAKIP is a photo-privacy filter that finds those sensitive details and covers them in solid
+> black — **entirely on your own device.** The image is never uploaded. After the one-time model
+> download, the core flow works in airplane mode.
+>
+> Built with React, TypeScript & Vite. On-device AI: Tesseract.js (OCR), MediaPipe (faces),
+> Transformers.js (names/places), ZXing (QR). Built for the @Devin / @Cognition
+> #AppBuildersPH builder challenge.
+>
+> **Blur before you share.**
+>
+> *(Add a line with real numbers only after `eval/results.md` exists — never invent them.)*
 
 ---
 
-## LinkedIn
+## Hashtags & tags
+- Always: **#AppBuildersPH**, tag **@devingo** (X) / **@Devin** + **@Cognition** (LinkedIn).
+- Optional: **#OnDeviceAI #Privacy #BuildInPublic #Philippines**
 
-```
-Sending a photo of your ID has become normal. Sending it safely hasn't.
+## Do / Don't
+- **Do** post the real video; a real demo beats a promise.
+- **Don't** mention the summary, watermark, export, live network counter or any scan-time/
+  recall number until those exist and `eval/results.md` backs them.
+- **Don't** use any real personal data in the screenshots you post.
+- **Do** keep the main post free of claims you can't show in the video.
 
-In a marketplace deal, a landlord chat, a job application or a delivery "verification," we
-hand a stranger our ID number, our birthday, our address and our face — and then it lives on
-their phone forever. Most of us blur it by hand, and forget something.
-
-So for AppBuildersPH, our team built TAKIP: an on-device privacy filter that automatically
-finds and permanently covers sensitive information in a photo before you share it —
-government ID numbers, faces, birthdays, addresses, phone and account numbers, and QR codes.
-
-What makes it different is where the AI runs: entirely on your phone. No upload, no cloud AI,
-no analytics. After the first load it works in airplane mode, so you can see for yourself
-that the photo never leaves the device.
-
-• Local AI: OCR, face detection, named-entity recognition and a small language model — all on-device
-• Plain-language risk summary so people understand *why* it matters
-• A purpose-bound watermark to discourage reuse
-• Metadata (EXIF/GPS) stripped on export
-
-Built in a hackathon by our team, with OpenAI Codex writing the code and a Hermes agent
-(DeepSeek V4.1 Flash) handling docs, testing and the pitch.
-
-Privacy tools shouldn't need your data in order to protect your data. Blur before you share. 🔒
-
-#AppBuildersPH #LocalAI #Privacy #OnDevice #EdgeAI
-
-Demo: [VIDEO LINK]
-Repo: [REPO LINK]
-Team: [TEAM HANDLES]
-
-(Thanks @Cognition for Devin and the local-AI-first tooling that made this build possible.)
-```
-
-> On LinkedIn, tag **Cognition** properly using @-mention (type "Co" and pick the company) —
-> plain "@Cognition" text may not notify. Keep the hashtag #AppBuildersPH in both posts.
-
----
-
-## Posting checklist
-- [ ] Demo video recorded and uploaded; `[VIDEO LINK]` filled.
-- [ ] Repo is **public**; `[REPO LINK]` filled.
-- [ ] Devin/Cognition tagged (X: @cognition · LinkedIn: Cognition company page).
-- [ ] **#AppBuildersPH** present in the post text (and hashtags).
-- [ ] Every feature mentioned is actually shown in the video.
-- [ ] No real ID or personal data visible in any attached frame.
-- [ ] Copy the live post URLs into `docs/submission.md` field 6.
+## Pre-post checklist
+- [ ] Video recorded per `docs/demo-script.md` (only BUILT beats).
+- [ ] No real personal data visible anywhere.
+- [ ] Tag Devin/Cognition + `#AppBuildersPH`.
+- [ ] Text matches the video — nothing extra promised.

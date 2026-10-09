@@ -26,5 +26,45 @@ p { line-height: 1.6; margin: 8px 0 20px; }
 .actions button { flex: 1; }
 .preview { display: block; max-width: 100%; max-height: 65vh; margin: 24px auto; }
 footer { font-size: 12px; margin-top: 28px; line-height: 1.7; }
+.caption { font-size: 12px; color: var(--muted); margin: 12px 0; }
+.setup { margin-top: 20px; font-size: 14px; }
+.scan-steps { list-style: none; padding: 0; display: grid; gap: 16px; }
+.scan-steps li { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+.scan-steps li span { border: 1px solid var(--line); width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; }
+.scan-steps .active { font-weight: 700; color: inherit; }
+.scan-steps .active span, .scan-steps .complete span { background: var(--green); color: white; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 32px 0 24px; }
+.section-heading h1 { font-size: clamp(24px, 3vw, 34px); margin: 8px 0; letter-spacing: -.04em; }
+.section-heading .eyebrow { margin: 0; }.section-heading button { flex-shrink: 0; }
+.review-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 28px; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.toolbar button { padding: 10px 14px; }
+.segmented { display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.segmented button { min-height: 40px; background: transparent; color: inherit; padding: 8px 14px; }
+.segmented button[aria-pressed=true] { background: var(--green); color: white; }
+.photo-frame { border: 1px solid var(--line); background: #dfe5dd; padding: 8px; border-radius: 8px; }
+.photo-surface { position: relative; width: 100%; overflow: hidden; user-select: none; }
+.photo-surface img { width: 100%; height: 100%; display: block; object-fit: contain; }
+.photo-surface.drawing { touch-action: none; cursor: crosshair; }
+.cover-hit { position: absolute; min-height: 0; padding: 0; border-radius: 0; background: transparent; border: 2px solid #83b692; }
+.cover-hit.uncovered { border: 2px dashed #a96300; }
+.cover-hit.highlighted { outline: 3px solid #e3b647; outline-offset: 2px; }
+.drawing .cover-hit { pointer-events: none; }
+.draw-preview { position: absolute; border: 2px solid #d2e792; background: #14281fbb; pointer-events: none; }
+.risk { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 8px; margin-bottom: 16px; }
+.risk span { font-size: 12px; }.risk strong { font-size: 19px; }
+.risk-high { background: #fae6df; color: #8b2a20; }.risk-medium { background: #f7edcf; color: #735010; }.risk-low { background: #e2eedc; color: #285036; }
+.summary { font-size: 14px; }.review-details h2 { font-size: 17px; margin-top: 24px; }
+.detection-list { list-style: none; padding: 0; display: grid; gap: 6px; }
+.detection-list li { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.chip { color: inherit; background: var(--surface); border: 1px solid var(--line); text-align: left; padding: 8px 12px; font-size: 12px; flex: 1; }
+.chip span { font-weight: 400; color: var(--muted); }.chip.selected { border-color: #ba7c16; }
+.cover-toggle { display: flex; align-items: center; gap: 6px; min-height: 44px; font-size: 11px; }
+input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--green); flex-shrink: 0; }
+.notice { border-left: 3px solid #ba7c16; padding: 8px 12px; background: var(--surface); font-size: 13px; }
+.export-panel { margin-top: 24px; padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.review-check { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; font-size: 14px; min-height: 44px; }
+.success { font-size: 13px; color: var(--muted); margin-bottom: 0; }
+@media (max-width: 760px) { .review-grid { grid-template-columns: minmax(0, 1fr); } .section-heading { align-items: flex-start; }.section-heading button { padding: 10px; font-size: 12px; }.export-panel { padding: 16px; } }
 @media (max-width: 600px) { .shell { padding: 20px; } header { gap: 8px; } .badge { font-size: 10px; padding: 8px; } .intro { padding-top: 32px; } .panel { padding: 20px; } }
 @media (prefers-color-scheme: dark) { :root { color: #e6eee4; background: #13211c; --surface: #1c2e25; --muted: #b1c3b4; --line: #3e5546; --green: #28634d; } h1 em { color: #bed68b; } }

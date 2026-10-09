@@ -19,7 +19,7 @@ test('real local OCR covers SAMPLE sensitive text', async ({ page }) => {
   await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await expect(page.getByText(/sensitive items found/)).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText('0 sensitive items found.', { exact: false })).toHaveCount(0);
-  await expect(page.getByRole('img', { name: 'Selected photo' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Photo with permanent covers preview' })).toBeVisible();
 });
 
 test('real face, small portrait, QR, barcode and NER detectors', async ({ page }) => {
