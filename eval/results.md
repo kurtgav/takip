@@ -1,6 +1,15 @@
 # TAKIP verification results
 
-Status: F1–F16 implemented and verified in the browser cases below. Final combined run: **11/11 browser tests PASSED in 2.8 minutes**, no skips or failures; 30/30 unit tests PASSED. F17 deferred. Tests use generated SAMPLE content and a labeled synthetic person. No private IDs or real screenshots used.
+Status: F1–F16 implemented and verified in the browser cases below. Latest feature-freeze run: **11/11 browser tests PASSED in 2.7 minutes**, no skips or failures; 30/30 unit tests PASSED. F17 deferred. Tests use generated SAMPLE content and a labeled synthetic person. No private IDs or real screenshots used.
+
+## Feature-freeze rerun — 2026-10-09
+
+- PASSED: `npm run lint`, `npm run typecheck`, `npm test` (30/30), `npm run build` (53 precache entries, 224093.40 KiB), `npm run test:browser` (11/11, 2.7 minutes). Suite duration is not phone scan latency.
+- PASSED: real OCR, face/NER/code detection, review, manual covers, risk summary, watermark pixels, flattened metadata-free export, share fallback/cancellation, fresh offline reload, suspended-worker guard, update deferral and cached real Qwen inference. Offline processing request log remained empty in the browser assertions.
+- PASSED: all 53 recorded assets match their byte sizes and SHA-256 hashes; every core manifest asset appears in the generated precache. Optional Qwen runtime is precached; weights remain an explicit download and pass the cached offline inference case.
+- PASSED: source URL audit, repository file-size inspection (largest file 68,067,328 bytes), and fixture inspection. No real personal photo/document or private-data file found in the inspected repository files. The only raster assets are two application icons and the labeled synthetic portrait; test values are constructed in source. Common private-key/token patterns were not found in first-party text; this is not a security certification.
+- PASSED: current 320px review and dark phone-width screenshots visually inspected; browser layout checks also pass. `git diff --check` passes.
+- No application code change was necessary. Documentation now distinguishes current disclosures from the obsolete submission draft. Physical-device, accuracy and deployment limits below remain unchanged. Dependency audit was not rerun in this documentation-only pass; the earlier recorded audit is historical evidence.
 
 ## Executed on 2026-10-09
 

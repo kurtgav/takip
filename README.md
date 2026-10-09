@@ -96,4 +96,14 @@ TAKIP protects photos people are afraid to leak. Uploading an ID or personal scr
 
 F1–F16 are implemented. F17 PaddleOCR is deferred: a viable official SDK was researched, but no paired accuracy corpus or target phone is available to establish improvement over the verified Tesseract path.
 
-Team names, public repository visibility, demo video, social-post URL and final event submission are maintained in `docs/submission.md`. Those human deliverables have not been invented or submitted by this agent.
+Submission checklist (PRD §15):
+
+- Project name: **TAKIP**. Short description: TAKIP finds and covers sensitive details in photos using on-device AI. Review automatic covers, add missed covers and a purpose watermark, then export a flattened PNG. Works offline after setup; detection can miss details.
+- Team members: **NOT PROVIDED**. Add actual names and roles before submission.
+- Public GitHub repository: **NOT VERIFIED**. Confirm the actual repository URL and public visibility before the stated October 10, 10:00 AM deadline.
+- Approximately one-minute demo video: **NOT PROVIDED**. Record the verified flow with clearly labeled SAMPLE content only.
+- X / LinkedIn video post URL: **NOT PROVIDED**. Event instructions require tagging Devin / Cognition and including **#AppBuildersPH**.
+- Runtime, internet requirements, models, technologies, cloud services, existing assets, AI development tools and the “why local” answer: disclosed above.
+- Final submission: **NOT PERFORMED**. Verify every field, then submit **once**; PRD §15 does not allow edits or resubmission.
+
+`docs/submission.md` is an earlier draft with obsolete build-status claims and blank human fields; do not paste it unchanged. This README and `eval/results.md` describe the verified implementation. See `ORCHESTRATOR_STABLE.md` for the final demo and phone airplane-mode procedure. No team identity, public visibility, video, social post or submission has been invented.

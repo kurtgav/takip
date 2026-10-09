@@ -79,3 +79,11 @@
 - README, decisions, acceptance plan and eval/results updated. Light 320px review and dark phone-width screenshots inspected; no overflow. No real personal data introduced, no app debug placeholders or disabled safeguards. Existing orchestrator/content-agent changes preserved.
 - Physical camera/native OS sheet, target-phone performance, approximately 30-photo accuracy set, Safari and venue rehearsals remain NOT RUN. These are documented limits, not fabricated results. Deployment and human submission assets remain outside this implementation task.
 - ORCHESTRATOR_DONE.md created with scope, executed checks, cut reason and demo steps. Stop implementation; no optional refactoring remains necessary.
+
+## Feature-freeze stabilization — 2026-10-09
+
+- Read the stabilization prompt, prior progress/decisions, core code and PRD §§13.1/15. Confirmed repository root `D:/takip`, branch `master`; preserved orchestrator-owned status changes. Codegraph/context-mode tools remain unavailable; targeted source inspection used.
+- PASSED in this session: lint, type-check, 30 unit tests, production build, and all 11 production-browser tests in 2.7 minutes with no failures/skips. Verified full input/scan/covers/risk/touch-up/watermark/export flow, fresh offline reload, real cached LLM inference and processing network guards. Current light 320px review and dark mobile screenshots inspected.
+- PASSED: all 53 asset hashes/sizes, core precache coverage, same-origin runtime configuration and repository file-size inspection. Largest file remains 68,067,328 bytes. Only raster assets are application icons and the documented synthetic portrait; no real personal photo/document found. URL exceptions and opt-in LLM caching documented in DECISIONS.md.
+- No runtime defect reproduced; no feature/dependency/code change needed. README now covers every PRD §15 field and warns that the earlier submission draft is stale. Current results and final `ORCHESTRATOR_STABLE.md` include exact demo/phone airplane-mode steps and honest remaining limits.
+- Physical phone/camera/native share, general accuracy corpus, Safari, venue rehearsal and deployment remain NOT RUN. Human team/repository/video/social/submission fields remain unfilled or unverified. No Git mutation, deployment, external communication or orchestration-file edit performed.
