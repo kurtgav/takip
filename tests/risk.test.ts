@@ -6,7 +6,7 @@ import type { Category } from '../src/types.ts';
 test('rates direct identifiers, financial details, and QR codes High', () => {
   const high: Category[] = [
     'philsys_number', 'tin', 'sss', 'umid', 'philhealth', 'pagibig',
-    'drivers_license', 'passport', 'mrz', 'passport_security_area', 'passport_portrait_area', 'passport_details_area', 'card_number', 'account_number', 'qr_code',
+    'drivers_license', 'passport', 'mrz', 'passport_security_area', 'passport_portrait_area', 'card_number', 'account_number', 'qr_code',
   ];
   for (const category of high) assert.equal(riskLevel([category]), 'High', category);
 });

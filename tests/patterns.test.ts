@@ -261,7 +261,9 @@ test('Philippine passport security area derives bounds from the top-right number
   const security = detections.find(box => box.category === 'passport_security_area');
   assert.ok(security);
   assert.deepEqual({ x: security.x, y: security.y, width: security.width, height: security.height },
-    { x: 275, y: 30, width: 175, height: 220 });
+    { x: 312.5, y: 52.5, width: 137.5, height: 197.5 });
+  const number = detections.find(box => box.category === 'passport')!;
+  assert.ok(security.y > number.y + number.height + 6, 'three-pixel padding on each box must not join the number to security print');
   assert.equal(security.enabled, true);
 });
 
@@ -273,6 +275,18 @@ test('passport security area requires Philippine country code, both MRZ rows and
     [number, { ...first, text: first.text.replace('PHL', 'UTO') }, { ...second, text: second.text.replace('PHL', 'UTO') }],
     [number, first], [first, second], [{ ...number, x: 20 }, first, second],
   ]) assert.ok(!detectPatterns(input, 'ID').some(box => box.category === 'passport_security_area'));
+});
+
+test('passport security bounds include confirmed repeated fields beyond the MRZ right edge', () => {
+  const detections = detectPatterns([
+    at('P1234567', 320, 30, 90, 15), at('SANTOS', 480, 90, 95), at('P1234567', 500, 130, 90),
+    at('ISSUER', 700, 170, 100),
+    at('P<PHLSANTOS<<LINA<MAY<<<<<<<<<<<<<<<<<<<<', 10, 250, 440, 15),
+    at('P1234567<0PHL9403143F3003149<<<<<<<<<<<<<<00', 10, 275, 440, 15),
+  ], 'ID');
+  const security = detections.find(box => box.category === 'passport_security_area')!;
+  assert.equal(security.x + security.width, 590);
+  assert.ok(security.y > 45, 'the primary number retains its separate box');
 });
 
 test('a tall OCR artifact beside the label cannot move the name value before its label', () => {
@@ -291,6 +305,54 @@ test('signature area requires ID context and an actual signature label', () => {
   assert.ok(detection.y < 90 && detection.y + detection.height > 102);
   assert.ok(detection.x <= 80 && detection.x + detection.width >= 210);
   assert.equal(detectPatterns([at('LINA MAY', 80, 90)], 'ID').length, 0);
+});
+
+test('licensee signature estimate stays above its label and away from neighboring fields', () => {
+  const detections = detectPatterns([
+    at('Signature of Licensee', 30, 120, 125, 12),
+    at('DL Codes', 190, 100, 65), at('A, B', 190, 120, 50),
+  ], 'ID');
+  const signature = detections.find(box => box.category === 'signature')!;
+  assert.deepEqual([signature.x, signature.y, signature.width, signature.height], [27, 96, 131, 20]);
+  assert.ok(signature.y + signature.height + 3 < 120, 'padding must leave the signature label visible');
+  assert.ok(signature.x + signature.width < 190);
+});
+
+test('missing license number is estimated only from independent licensee, left-column and expiry anchors', () => {
+  const fixture = [at('Full name', 250, 20, 120), at('ALEXIS SANTOS', 250, 42, 140),
+    at('Expiration Date', 430, 120, 120), at('Signature of Licensee', 40, 260, 140)];
+  const number = detectPatterns(fixture, 'ID').find(box => box.category === 'drivers_license')!;
+  assert.equal(number.estimated, true);
+  assert.deepEqual([number.x, number.y, number.width, number.height], [244, 135, 180, 24]);
+  for (const absent of [0, 2, 3]) assert.ok(!detectPatterns(fixture.filter((_, index) => index !== absent), 'ID')
+    .some(box => box.category === 'drivers_license'));
+  assert.ok(!detectPatterns(fixture, 'Unknown').some(box => box.category === 'drivers_license'));
+});
+
+test('labeled license OCR tolerates split groups and digit-shaped letters', () => {
+  const detections = detectPatterns(words([['License', 'No.'], ['A01–23–', '4S6789']]), 'ID');
+  assert.deepEqual(detections.map(({ category, x, y, width, estimated }) => [category, x, y, width, estimated]),
+    [['drivers_license', 0, 30, 170, undefined]]);
+});
+
+test('an inline address value continues below without consuming following license fields', () => {
+  const detections = detectPatterns([
+    at('Address', 10, 10, 65), at('17 Fiction Lane', 90, 10, 130),
+    at('Cebu City', 90, 30, 90), at('License No.', 90, 60), at('A01-23-456789', 90, 80),
+  ], 'ID');
+  assert.deepEqual(detections.map(({ category, x, y, width, height }) => [category, x, y, width, height]),
+    [['address', 90, 10, 130, 32], ['drivers_license', 90, 80, 100, 12]]);
+});
+
+test('address bounds stop before a neighboring license heading even when OCR value boxes are tall', () => {
+  const input = [at('Address', 30, 10, 70, 10),
+    at('17 Fiction Lane', 30, 25, 240, 14), at('Cebu City', 30, 43, 240, 30),
+    at('License No.', 30, 69, 90, 10), at('Expiry Date', 165, 67, 100, 10),
+    at('A01-23-456789', 30, 84, 120), at('2030/03/14', 165, 84, 100)];
+  const address = detectPatterns(input, 'ID').find(box => box.category === 'address')!;
+  assert.ok(address.y >= 24);
+  assert.equal(address.y + address.height, 63);
+  assert.ok(address.y + address.height + 3 < 67, 'export padding must leave the expiry heading visible');
 });
 
 test('issue, expiry, receipt, and unlabelled dates are never reported as birthdays', () => {
@@ -542,4 +604,19 @@ test('checked MRZ dates support a single intervening OCR-damaged issue date', ()
   assert.deepEqual(detectPatterns(fixture, 'ID').filter(box => box.category.endsWith('date') || box.category === 'birthday')
     .map(({ category, y }) => [category, y]), [['birthday', 70], ['issue_date', 110], ['expiry_date', 160]]);
   assert.ok(!detectPatterns([...fixture, at('2021/01/01', 150, 135)], 'ID').some(box => box.category === 'issue_date'));
+});
+
+test('Philippine passport issue estimate uses the preceding date when birth OCR is missing', () => {
+  const fixture = [
+    at('15', 150, 110, 20, 20), at('JAN', 175, 110, 35, 20), at('2', 215, 110, 8, 20), at('D025', 225, 110, 40, 20),
+    at('14', 150, 160, 20, 20), at('MAR', 175, 160, 35, 20), at('2030', 215, 160, 50, 20),
+    at('P<PHLSANTOS<<LINA<MAY<<<<<<<<<<<<<<<<<<<<', 0, 220, 435),
+    at('P1234567<0PHL9403143F3003149<<<<<<<<<<<<<<00', 0, 240, 435),
+  ];
+  const issue = detectPatterns(fixture, 'ID').find(box => box.category === 'issue_date');
+  assert.ok(issue?.estimated);
+  assert.deepEqual([issue.x, issue.y, issue.width, issue.height], [150, 110, 115, 20]);
+  assert.ok(!detectPatterns(fixture.slice(0, -1), 'ID').some(box => box.category === 'issue_date'));
+  const ambiguous = [...fixture, at('16', 150, 135, 20), at('FEB', 175, 135, 35), at('2025', 215, 135, 40)];
+  assert.ok(!detectPatterns(ambiguous, 'ID').some(box => box.category === 'issue_date'));
 });

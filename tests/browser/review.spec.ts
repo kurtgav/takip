@@ -205,6 +205,45 @@ test('back navigation retains edits and later edits invalidate review confirmati
   await expect(page.getByRole('button', { name: 'Save safe copy', exact: true })).toBeDisabled();
 });
 
+test('touch drag adds a mobile cover with direct hide, remove, and undo controls', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Touch drag uses Chromium input events.');
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('./');
+  await chooseManualMode(page);
+  await page.getByLabel('Choose photo', { exact: true }).setInputFiles({ name: 'sample.png', mimeType: 'image/png', buffer: await samplePhoto(page) });
+  await expect(page.getByRole('heading', { name: 'Check every detail' })).toBeVisible({ timeout: 120_000 });
+
+  const surface = page.locator('.photo-surface');
+  const draw = async (fromX: number, fromY: number, toX: number, toY: number) => {
+    await page.getByRole('button', { name: 'Add cover', exact: true }).click();
+    await surface.scrollIntoViewIfNeeded();
+    const bounds = await surface.boundingBox();
+    if (!bounds) throw new Error('Photo surface has no bounds');
+    const session = await context.newCDPSession(page);
+    const point = (x: number, y: number) => ({ x: bounds.x + bounds.width * x, y: bounds.y + bounds.height * y, id: 1 });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point(fromX, fromY)] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point(toX, toY)] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await session.detach();
+  };
+
+  await draw(.12, .18, .48, .5);
+  const manualRows = page.locator('.detection-list li[data-category="manual"]');
+  await expect(manualRows).toHaveCount(1);
+  await expect(manualRows.first().getByRole('checkbox')).toBeChecked();
+  await manualRows.first().getByRole('checkbox').uncheck();
+  await expect(page.locator('.cover-hit.uncovered.highlighted')).toHaveCSS('opacity', '1');
+
+  await draw(.55, .55, .88, .82);
+  await expect(manualRows).toHaveCount(2);
+  await expect(page.locator('.cover-hit.uncovered:not(.highlighted)')).toHaveCSS('opacity', '0');
+  await manualRows.nth(1).getByRole('button', { name: /^Remove / }).click();
+  await expect(manualRows).toHaveCount(1);
+  await page.getByRole('button', { name: 'Undo remove', exact: true }).click();
+  await expect(manualRows).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
 test('watermark typing keeps the mobile form stable and inside the viewport', async ({ page }) => {
   await page.addInitScript(() => {
     const toBlob = HTMLCanvasElement.prototype.toBlob;

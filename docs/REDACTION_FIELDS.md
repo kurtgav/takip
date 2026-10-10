@@ -8,7 +8,7 @@ Philippine privacy rules are purpose- and proportionality-based. The Data Privac
 
 TAKIP should use these product priorities:
 
-- **High — cover by default:** holder-specific identifiers, payment credentials, machine-readable repeats, contact/address data, portraits, holder signatures, and fields that materially enable identity fraud or account misuse.
+- **High priority:** holder-specific identifiers, payment credentials, machine-readable repeats, contact/address data, portraits, holder signatures, and fields that materially enable identity fraud or account misuse.
 - **Review — suggest or let the user choose:** holder attributes that may be needed for the sharing purpose, or which become risky mainly when combined with other fields.
 - **Optional — lower priority:** issuer branding and generic institutional or office metadata. These fields should not create a High rating by themselves. Offer a separate “Hide institution/issuer” control when the user wants to conceal affiliation or document origin.
 
@@ -16,7 +16,9 @@ NPC Circular 2023-03 covers organizational IDs including company, school, insura
 
 ## Field matrix
 
-| Document | High — cover by default | Review — purpose-dependent | Optional — lower priority, not High by itself | Source-grounded notes |
+Takip’s selected-field defaults follow the requested sharing workflow: driver’s license covers address, license number and licensee signature; passport covers passport number, issue/expiry dates, both MRZ rows and the right-side security print. Other detected fields can be covered individually or with **Cover all detected**. The risk priorities below describe information sensitivity, not a claim that the selected-field preset hides every sensitive detail.
+
+| Document | High priority | Review — purpose-dependent | Optional — lower priority, not High by itself | Source-grounded notes |
 |---|---|---|---|---|
 | **Philippine passport** | Passport number wherever it appears; both complete MRZ rows; full name; birth date and place; portrait and ghost/secondary portrait; holder signature; any microtext or hidden/coded portrait region that repeats holder name or passport number | Sex, nationality, issue date, expiry date | `P` document type, `PHL` country code, `DFA MANILA`/issuing authority, Republic/DFA labels and graphics, generic official or signing-officer signature | DFA specimen pages show passport number, biographic fields, portrait, issuing authority, and two MRZ rows. ICAO defines MRZ contents including document number, name, nationality, birth date, sex, expiry, and check digits. DFA also describes hidden encoding of holder name and passport number in the portrait; another DFA instruction places the holder's signature on page 3. Cover every duplicate, not only the largest printed value. [DFA specimen][dfa-passport-sample] [ICAO Doc 9303-4][icao-9303] [DFA ePassport security advisory][dfa-security] [DFA holder-signature instruction][dfa-signature] |
 | **LTO driver's license** | License number; card serial; barcode/2D code; full name; birth date; address; portrait; licensee signature; blood type and medical conditions | Sex, nationality, height, weight, eye color, DL codes/restrictions, issue/expiry dates | LTO/Republic labels and seal, agency code, generic card title, official signatory name/title/signature | LTO's official field manual specimen shows these front fields and a back serial plus 2D code. Agency code identifies an office; it is different from the holder's license number. [LTO field manual][lto-license] |

@@ -4,7 +4,7 @@ export type RiskLevel = 'Low' | 'Medium' | 'High';
 
 const directHighRisk = new Set<Category>([
   'philsys_number', 'tin', 'sss', 'umid', 'philhealth', 'pagibig',
-  'drivers_license', 'passport', 'mrz', 'passport_security_area', 'passport_portrait_area', 'passport_details_area', 'card_number', 'account_number', 'qr_code',
+  'drivers_license', 'passport', 'mrz', 'passport_security_area', 'passport_portrait_area', 'card_number', 'account_number', 'qr_code',
   'card_security_code', 'payment_secret', 'student_number', 'learner_number', 'employee_number', 'identity_number',
   'government_number', 'pagibig_rtn',
 ]);

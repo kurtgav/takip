@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { continueToSave, enableAutomaticChecks, expectRequestsCached } from './sample';
+import { continueToSave, enableAutomaticChecks, expectRequestsCached, expandDetails } from './sample';
 
 type Region = { name: string; x: number; y: number; width: number; height: number };
 type Fixture = { name: string; buffer: Buffer; document: 'ID' | 'Payment card'; expected: string[]; disabled?: string[]; fullNames?: number };
@@ -100,6 +100,11 @@ async function fieldCard(page: Page, title: string, fields: Array<[string, strin
       const row = Math.floor(index / 2);
       const x = 55 + column * 570;
       const y = 165 + row * 135;
+      if (label === 'SIGNATURE OF LICENSEE') {
+        context.fillStyle = '#111'; context.font = 'italic 28px Arial'; context.fillText(value, 55, 700);
+        context.fillStyle = '#4b5a52'; context.font = '600 22px Arial'; context.fillText(label, 55, 732);
+        return;
+      }
       context.fillStyle = '#4b5a52'; context.font = '600 22px Arial'; context.fillText(label, x, y);
       context.fillStyle = '#111'; context.font = '700 34px Arial'; context.fillText(value, x, y + 48);
     });
@@ -114,7 +119,7 @@ async function inspectDetections(page: Page, fixture: Fixture): Promise<void> {
   });
   await expect(page.getByRole('heading', { name: 'Your details. Your decision.' })).toBeVisible({ timeout: 120_000 });
   await expect(page.locator('.document-type')).toContainText(`Looks like: ${fixture.document}`);
-  await page.getByRole('button', { name: 'Edit detected details', exact: true }).click();
+  await expandDetails(page);
   const list = page.getByRole('list', { name: 'Detected items' });
   for (const category of fixture.expected) {
     const items = list.locator(`li[data-category="${category}"]`);
@@ -138,8 +143,8 @@ async function inspectDetections(page: Page, fixture: Fixture): Promise<void> {
   await expect(page.getByTestId('network-counter')).toHaveText('0 network requests · 0 blocked attempts');
 }
 
-async function verifyOpaqueTextCovers(page: Page, source: Buffer, output: Buffer, regions: Region[]): Promise<void> {
-  const result = await page.evaluate(async ({ source, output, regions }) => {
+async function verifyOpaqueTextCovers(page: Page, source: Buffer, output: Buffer, regions: Region[], visibleRegions: Region[] = []): Promise<void> {
+  const result = await page.evaluate(async ({ source, output, regions, visibleRegions }) => {
     const decode = async (value: string) => {
       const bytes = Uint8Array.from(atob(value), character => character.charCodeAt(0));
       return await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
@@ -154,7 +159,16 @@ async function verifyOpaqueTextCovers(page: Page, source: Buffer, output: Buffer
     const covered = context.getImageData(0, 0, canvas.width, canvas.height).data;
     return { dimensions: {
       source: [sourceImage.width, sourceImage.height], output: [outputImage.width, outputImage.height],
-    }, regions: regions.map(region => {
+    }, visibleRegions: visibleRegions.map(region => {
+      let changed = 0;
+      for (let y = Math.ceil(region.y); y < Math.floor(region.y + region.height); y++) {
+        for (let x = Math.ceil(region.x); x < Math.floor(region.x + region.width); x++) {
+          const offset = (y * canvas.width + x) * 4;
+          if ([0, 1, 2, 3].some(channel => original[offset + channel] !== covered[offset + channel])) changed++;
+        }
+      }
+      return { name: region.name, changed };
+    }), regions: regions.map(region => {
       let sourceInk = 0; let missedInk = 0; let coverPixels = 0; let nonOpaque = 0;
       const left = Math.max(0, Math.floor(region.x));
       const top = Math.max(0, Math.floor(region.y));
@@ -170,10 +184,11 @@ async function verifyOpaqueTextCovers(page: Page, source: Buffer, output: Buffer
       }
       return { name: region.name, sourceInk, missedInk, coverPixels, nonOpaque };
     }) };
-  }, { source: source.toString('base64'), output: output.toString('base64'), regions });
+  }, { source: source.toString('base64'), output: output.toString('base64'), regions, visibleRegions });
 
   expect(result.dimensions.source).toEqual([800, 525]);
   expect(result.dimensions.output).toEqual(result.dimensions.source);
+  for (const region of result.visibleRegions) expect(region.changed, `${region.name}: default preset covered an unselected field`).toBe(0);
   for (const region of result.regions) {
     expect(region.sourceInk, `${region.name}: fixture text was not rendered`).toBeGreaterThan(20);
     expect(region.missedInk, `${region.name}: sensitive glyph pixels remain visible`).toBe(0);
@@ -191,11 +206,12 @@ test('offline OCR covers synthetic passport fields and recognizes labeled Philip
   const passport = await passportFixture(page);
   const fixtures: Fixture[] = [
     {
-      name: 'drivers-license', document: 'ID', expected: ['full_name', 'drivers_license', 'birthday', 'address', 'medical_details'], disabled: ['agency_code'], fullNames: 1,
+      name: 'drivers-license', document: 'ID', expected: ['drivers_license', 'address', 'signature'], disabled: ['full_name', 'birthday', 'medical_details', 'agency_code'], fullNames: 1,
       buffer: await fieldCard(page, "REPUBLIC OF THE PHILIPPINES DRIVER'S LICENSE", [
         ['FULL NAME', 'CASEY SAMPLE'], ['LICENSE NO.', 'A01-23-456789'],
         ['DATE OF BIRTH', '01 JAN 1990'], ['ADDRESS', '17 FICTION STREET'],
         ['BLOOD TYPE', 'AB+'], ['CONDITIONS', 'NONE'], ['AGENCY CODE', 'TEST-007'],
+        ['SIGNATURE OF LICENSEE', 'Casey Sample'],
       ]),
     },
     {
@@ -260,9 +276,11 @@ test('offline OCR covers synthetic passport fields and recognizes labeled Philip
   await test.step('passport labels, MRZ rows, and opaque export', async () => {
     await inspectDetections(page, {
       name: 'synthetic-passport', buffer: passport.buffer, document: 'ID',
-      expected: ['passport', 'full_name', 'birthday', 'birthplace', 'sex', 'nationality', 'issue_date', 'expiry_date', 'mrz', 'passport_security_area', 'passport_portrait_area', 'passport_details_area'],
+      expected: ['passport', 'issue_date', 'expiry_date', 'mrz', 'passport_security_area'],
+      disabled: ['full_name', 'birthday', 'birthplace', 'sex', 'nationality', 'passport_portrait_area'],
     });
-    await expect(page.locator('.detection-list li[data-category="mrz"]')).toHaveCount(2);
+    await expect(page.locator('.detection-list li[data-category="mrz"]')).toHaveCount(1);
+    await expect(page.locator('.detection-list input:checked')).toHaveCount(5);
     // Three name fields plus the independently readable repeat in security print.
     await expect(page.locator('.detection-list li[data-category="full_name"]')).toHaveCount(4);
     await continueToSave(page);
@@ -270,7 +288,9 @@ test('offline OCR covers synthetic passport fields and recognizes labeled Philip
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Save safe copy', exact: true }).click();
     const output = await readFile(await (await download).path());
-    await verifyOpaqueTextCovers(page, passport.buffer, output, passport.regions);
+    await verifyOpaqueTextCovers(page, passport.buffer, output,
+      passport.regions.filter(region => ['passport number', 'issue date', 'expiry date', 'repeated security text', 'MRZ row 1', 'MRZ row 2'].includes(region.name)),
+      passport.regions.filter(region => ['surname', 'given names', 'middle name', 'birth date', 'portrait area'].includes(region.name)));
   });
 
   for (const fixture of fixtures) {

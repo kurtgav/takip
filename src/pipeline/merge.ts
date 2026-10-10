@@ -11,7 +11,7 @@ const combine = (a: Detection, b: Detection): Detection => {
   const y = Math.min(a.y, b.y);
   const right = Math.max(a.x + a.width, b.x + b.width);
   const bottom = Math.max(a.y + a.height, b.y + b.height);
-  return { ...a, id: `${a.id}+${b.id}`, x, y, width: right - x, height: bottom - y };
+  return { ...a, ...(a.estimated || b.estimated ? { estimated: true } : {}), id: `${a.id}+${b.id}`, x, y, width: right - x, height: bottom - y };
 };
 
 export function mergeDetections(detections: Detection[], width: number, height: number): Detection[] {

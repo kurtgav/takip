@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyCoverPreset, guessDocument, usesEntityModel } from '../src/pipeline/document.ts';
+import { applyCoverPreset, coverProfile, groupPassportRows, guessDocument, usesEntityModel } from '../src/pipeline/document.ts';
 import type { Category, Detection, Word } from '../src/types.ts';
 
 const words = (text: string): Word[] => text.split(' ').map((word, index) => ({ text: word, line: 0, x: index, y: 0, width: 1, height: 1 }));
@@ -39,6 +39,41 @@ test('seller preset exposes only name and face while preserving manual covers', 
   ]);
   assert.ok(seller.every((item, index) => item !== detections[index]));
   assert.ok(applyCoverPreset(seller, 'cover-all').every(item => item.enabled));
+});
+
+test('independent licensee signature and expiry captions support a damaged license title', () => {
+  assert.equal(guessDocument(words('Signature of License Expiration Date')), 'ID');
+  assert.equal(guessDocument(words('Signature of Licensee Expiration Date')), 'ID');
+  assert.equal(guessDocument(words('Signature Expiration Date')), 'Unknown');
+  assert.equal(guessDocument(words('Signature of License')), 'Unknown');
+});
+
+test('document defaults cover only requested categories and keep manual additions', () => {
+  const categories: Category[] = ['address', 'drivers_license', 'signature', 'passport', 'issue_date', 'expiry_date', 'mrz', 'passport_security_area', 'full_name', 'birthday', 'face', 'passport_portrait_area', 'agency_code', 'manual'];
+  const boxes = categories.map((category, index): Detection => ({ id: String(index), category, enabled: true, x: 0, y: index * 30, width: 40, height: 20 }));
+  assert.deepEqual(applyCoverPreset(boxes, 'drivers-license').filter(box => box.enabled).map(box => box.category), ['address', 'drivers_license', 'signature', 'manual']);
+  assert.deepEqual(applyCoverPreset(boxes, 'passport').filter(box => box.enabled).map(box => box.category), ['passport', 'issue_date', 'expiry_date', 'mrz', 'passport_security_area', 'manual']);
+  assert.equal(coverProfile(words("REPUBLIC OF THE PHILIPPINES DRIVER'S LICENSE"), []), 'drivers-license');
+  assert.equal(coverProfile(words('PASAPORTE'), ['mrz']), 'passport');
+  assert.equal(coverProfile(words('Student ID'), ['student_number']), undefined);
+  assert.equal(coverProfile(words('Receipt Total'), []), undefined);
+  assert.equal(coverProfile(words('RECEIPT Passport photo Total VAT'), []), undefined);
+  assert.equal(coverProfile(words('PASSPORT ACADEMY STUDENT ID'), ['student_number', 'full_name']), undefined);
+  assert.equal(coverProfile(words('Expiration Date Signature of License'), ['signature', 'expiry_date']), 'drivers-license');
+  assert.equal(coverProfile(words('Signature alone'), ['signature']), undefined);
+});
+
+test('passport rows become one neat independent cover without merging adjacent fields', () => {
+  const boxes: Detection[] = [
+    { id: 'number', category: 'passport', enabled: true, x: 200, y: 10, width: 80, height: 20 },
+    { id: 'row1', category: 'mrz', enabled: true, x: 10, y: 300, width: 500, height: 20 },
+    { id: 'row2', category: 'mrz', enabled: true, x: 8, y: 330, width: 505, height: 22 },
+  ];
+  const result = groupPassportRows(boxes);
+  assert.equal(result.length, 2);
+  assert.deepEqual(result[0], boxes[0]);
+  assert.deepEqual(result[1], { ...boxes[1], x: 8, y: 300, width: 505, height: 52 });
+  assert.equal(boxes[1].height, 20);
 });
 
 test('receipt merchant TIN does not compete with clear receipt clues', () => {

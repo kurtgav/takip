@@ -2,6 +2,11 @@ import { useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { categoryLabels, type Box, type Detection } from '../types';
 
+export function detectionLabel(detection: Pick<Detection, 'category' | 'estimated'>): string {
+  const label = categoryLabels[detection.category];
+  return detection.estimated && !label.includes('(estimated)') ? `${label} (estimated)` : label;
+}
+
 interface Props {
   src?: string; width: number; height: number; detections: Detection[];
   before: boolean; adding: boolean; selected?: string; readOnly?: boolean;
@@ -40,8 +45,8 @@ export function PhotoEditor({ src, width, height, detections, before, adding, se
       <img src={src} alt={before ? 'Original photo before covers' : 'Photo with permanent covers preview'} draggable={false} />
       {!before && detections.map((box, index) => readOnly ? <span key={box.id} className={`cover-hit ${box.enabled ? 'covered' : 'uncovered'}`} style={style(box)} aria-hidden="true" /> : <button key={box.id} type="button"
         className={`cover-hit ${box.enabled ? 'covered' : 'uncovered'} ${selected === box.id ? 'highlighted' : ''}`}
-        style={style(box)} tabIndex={adding || readOnly ? -1 : 0} disabled={adding || readOnly}
-        aria-label={`${box.enabled ? 'Uncover' : 'Cover'} ${categoryLabels[box.category]} ${index + 1}`}
+        style={style(box)} tabIndex={adding || readOnly || (!box.enabled && selected !== box.id) ? -1 : 0} disabled={adding || readOnly}
+        aria-label={`${box.enabled ? 'Uncover' : 'Cover'} ${detectionLabel(box)} ${index + 1}`}
         aria-pressed={box.enabled} onClick={() => { if (!adding) onToggle(box.id); }} />)}
       {draft && <div className="draw-preview" style={style(draft)} />}
     </div>

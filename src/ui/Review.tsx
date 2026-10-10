@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { LocalPhoto } from '../render/photo';
 import { riskLevel, templateSummary } from '../pipeline/risk';
-import { categoryLabels, type Box, type Detection, type Watermark } from '../types';
+import { type Box, type Detection, type Watermark } from '../types';
 import type { ScanOutput } from '../workers/protocol';
 import { downloadCopy } from '../render/download';
 import { useBlobUrl } from './useBlobUrl';
-import { PhotoEditor } from './PhotoEditor';
+import { detectionLabel, PhotoEditor } from './PhotoEditor';
 import { WatermarkEditor } from './WatermarkEditor';
 import { applyCoverPreset, type CoverPreset } from '../pipeline/document';
 import { canShareFile } from '../platform';
@@ -13,6 +13,10 @@ import { canShareFile } from '../platform';
 interface Props { result: ScanOutput; photo: LocalPhoto; summary?: { text: string; source: 'model' | 'template' }; onReset: () => void; onSetup: () => void }
 type Stage = 'cover' | 'watermark' | 'save';
 const stages: { id: Stage; label: string }[] = [{ id: 'cover', label: 'Cover' }, { id: 'watermark', label: 'Watermark' }, { id: 'save', label: 'Save' }];
+const coverProfileCopy = {
+  passport: 'Passport number, issue and expiry dates, both machine-readable rows, and right-side security print are selected. Names, birth details, and the main portrait stay visible unless you cover them.',
+  'drivers-license': 'Address, license number, and holder signature are selected. Name, birth details, portrait, and other detected fields stay visible unless you cover them.',
+} as const;
 
 export function Review({ result, photo, summary, onReset, onSetup }: Props) {
   const [stage, setStage] = useState<Stage>('cover');
@@ -102,18 +106,21 @@ export function Review({ result, photo, summary, onReset, onSetup }: Props) {
       </div>
       {result.warnings.map(warning => <p className="notice" key={warning}>{warning}</p>)}
       {result.analysisStatus === 'manual' && <div className="manual-recovery"><p>Want automatic detection? Close this photo, set up the checks, then choose your photo again. Closing discards this session’s edits.</p><button className="secondary" onClick={onSetup}>Close photo and set up checks</button></div>}
-      {!editingDetails && <div className="detection-chips" aria-label="Detected details">{detections.map((box, index) => <button key={box.id} data-category={box.category} className={selected === box.id ? 'chip selected' : 'chip'} onClick={() => { setSelected(box.id); setBefore(false); }}>{categoryLabels[box.category]} <span>{index + 1}</span></button>)}</div>}
+      {result.coverProfile && <div className="cover-profile"><p><strong>Default selected covers</strong></p><p>{coverProfileCopy[result.coverProfile]}</p><button className="secondary" onClick={() => applyPreset(result.coverProfile!)}>Restore selected fields</button></div>}
+      {detections.length > 0 && <div className="cover-controls">
+        <h3>Covers</h3><p className="caption">Select a label to find its box. Turn a cover off only when you intend to share that detail.</p>
+        <ul className="detection-list" aria-label="Detected items">{detections.map((box, index) => <li key={box.id} data-category={box.category}>
+          <button className={selected === box.id ? 'chip selected' : 'chip'} onClick={() => { setSelected(box.id); setBefore(false); }}>{detectionLabel(box)} <span>{index + 1}</span></button>
+          <label className="cover-toggle"><input type="checkbox" checked={box.enabled} onChange={() => toggle(box.id)} aria-label={`Cover ${detectionLabel(box)} ${index + 1}`} /><span>{box.enabled ? 'Covered' : 'Visible'}</span></label>
+          <button className="secondary remove-detection" aria-label={`Remove ${detectionLabel(box)} ${index + 1}`} onClick={() => { setRemoved(box); setDetections(items => items.filter(item => item.id !== box.id)); setSelected(undefined); }}>Remove</button>
+        </li>)}</ul>
+      </div>}
       {detections.length > 0 && <button className="secondary edit-details" aria-expanded={editingDetails} aria-controls="detail-editor" onClick={() => setEditingDetails(!editingDetails)}>Edit detected details</button>}
       {editingDetails && <div id="detail-editor">
-        <h3>Detected details</h3><p className="caption">{detections.filter(box => box.category !== 'manual').length} sensitive items found. Uncheck to uncover. Remove an incorrect detection to update the assessment.</p>
-        <ul className="detection-list" aria-label="Detected items">{detections.map((box, index) => <li key={box.id} data-category={box.category}>
-          <button className={selected === box.id ? 'chip selected' : 'chip'} onClick={() => { setSelected(box.id); setBefore(false); }}>{categoryLabels[box.category]} <span>{index + 1}</span></button>
-          <label className="cover-toggle"><input type="checkbox" checked={box.enabled} onChange={() => toggle(box.id)} aria-label={`Cover ${categoryLabels[box.category]} ${index + 1}`} />Covered</label>
-          <button className="secondary remove-detection" aria-label={`Remove ${categoryLabels[box.category]} ${index + 1}`} onClick={() => { setRemoved(box); setDetections(items => items.filter(item => item.id !== box.id)); setSelected(undefined); }}>Remove</button>
-        </li>)}</ul>
+        <h3>Cover options</h3><p className="caption">{detections.filter(box => box.category !== 'manual').length} sensitive items found automatically. Removing an incorrect detection updates the assessment. Manual covers remain manual and do not change the detected categories.</p>
         {detections.some(box => box.category !== 'manual') && <><h3>Minimum share presets</h3><p className="caption">Seller verification turns off individual name and face covers. Estimated areas and manual covers stay on and may still hide those details. Review every cover before sharing.</p><div className="actions" aria-label="Minimum share presets"><button className="secondary" onClick={() => applyPreset('seller-verification')}>Seller verification</button><button className="secondary" onClick={() => applyPreset('cover-all')}>Cover all detected</button></div></>}
       </div>}
-      {removed && <div className="undo-notice" role="status"><span>{categoryLabels[removed.category]} detection removed.</span><button className="secondary" onClick={() => { setDetections(items => [...items, removed]); setRemoved(undefined); }}>Undo remove</button></div>}
+      {removed && <div className="undo-notice" role="status"><span>{detectionLabel(removed)} detection removed.</span><button className="secondary" onClick={() => { setDetections(items => [...items, removed]); setRemoved(undefined); }}>Undo remove</button></div>}
       {detections.length === 0 && result.analysisStatus !== 'manual' && <p>No details detected. This is not a guarantee of safety. Add any covers needed.</p>}
       {exposed.length > 0 && <p className="notice">{exposed.length} detected {exposed.length === 1 ? 'item remains' : 'items remain'} visible. Check that you intend to share {exposed.length === 1 ? 'it' : 'them'}.</p>}
       <div className="stage-actions"><button disabled={!ready} onClick={() => goTo('watermark')}>Continue</button></div>

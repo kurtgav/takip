@@ -66,7 +66,7 @@ const labelRules: Rule[] = [
   { labels: ['customer address', 'billing address', 'shipping address', 'delivery address'], category: 'address', validate: personalText, customer: true },
   { labels: ['first name', 'given names', 'given name', 'middle name', 'last name', 'last name first name middle', 'surname', 'full name', 'cardholder name', 'name on card', 'account name', 'registered name', 'name', 'pangalan', 'apelyido', 'gitnang pangalan', 'panggitnang apelyido'], category: 'full_name', validate: personalText },
   { labels: ['address', 'tirahan', 'city', 'province'], category: 'address', validate: personalText },
-  { labels: ['license no', 'license number', 'licence no', 'licence number', 'license', 'licence'], category: 'drivers_license', validate: value => /^[A-Z0-9][0-9OIL]{2}[-. ]?[0-9OIL]{2}[-. ]?[0-9OIL]{6}$/i.test(value.trim()) },
+  { labels: ['license no', 'license number', 'licence no', 'licence number', 'license', 'licence'], category: 'drivers_license', validate: value => /^[A-Z0-9][0-9OILSBZ]{2}[-.]?[0-9OILSBZ]{2}[-.]?[0-9OILSBZ]{6}$/i.test(value.replace(/\s/g, '').replace(/[–—−]/g, '-')) },
   { labels: ['passport no', 'passport number', 'passport', 'pasaporte blg'], category: 'passport', validate: value => /^[A-Z]{1,2}[0-9OIL]{7}[A-Z]?$/i.test(value.replace(/\s/g, '')) },
   { labels: ['account number', 'account no', 'mp2 account number', 'mp2 account', 'account'], category: 'account_number', validate: value => /^[\d .-]+$/.test(value) && digits(value).length >= 9 },
   // OCR can merge repeated digits. A field label supports covering the whole
@@ -224,10 +224,12 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
       if (rule.category === 'signature') {
         if (documentGuess !== 'ID') continue;
         const height = labelBox.height;
-        const x = Math.max(0, labelBox.x - height);
-        const y = Math.max(0, labelBox.y - height * 3);
+        const licensee = /licen[cs]e[es]?/.test(normalize(row.slice(label.start, label.end).map(word => word.text).join(' ')));
+        const x = Math.max(0, labelBox.x - height * (licensee ? 0.25 : 1));
+        const y = Math.max(0, labelBox.y - height * (licensee ? 2 : 3));
         detections.push({ id: `pattern-signature-${row[label.start].index}`, category: 'signature', enabled: true,
-          x, y, width: Math.max(labelBox.width + height * 2, height * 12), height: labelBox.y + height * 4 - y });
+          x, y, width: licensee ? labelBox.width + height * 0.5 : Math.max(labelBox.width + height * 2, height * 12),
+          height: (licensee ? labelBox.y - Math.max(4, height * 0.25) : labelBox.y + height * 4) - y });
         continue;
       }
       const nextLabel = labels[labelIndex + 1];
@@ -241,7 +243,7 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
       if (rule.category === 'full_name' && /last name first name middle$/.test(normalize(row.slice(label.start, label.end).map(word => word.text).join(' ')))
         && values.length && values.every(word => word.confidence !== undefined && word.confidence < 40)) values = [];
       if (values.length && rule.validate && !rule.validate(values.map(word => word.text).join(' '))) values = [];
-      if (!values.length || (rule.category === 'full_name' && values.every(word => word.height > labelBox.height * 1.4))) {
+      if (!values.length || rule.category === 'address' || (rule.category === 'full_name' && values.every(word => word.height > labelBox.height * 1.4))) {
         for (let below = rowIndex + 1; below < rows.length; below += 1) {
           const candidate = rows[below];
           if (candidate[0].y - (labelBox.y + labelBox.height) > labelBox.height * (rule.category === 'address' ? 5 : 2.5)) break;
@@ -295,6 +297,29 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
     }
     const birthday = detections.find(box => box.category === 'birthday');
     const expiry = detections.find(box => box.category === 'expiry_date');
+    if (!birthday && expiry && !detections.some(box => box.category === 'issue_date')
+      && detections.filter(box => box.category === 'mrz').length >= 2) {
+      const candidates: IndexedWord[][] = [];
+      for (const row of rows) for (let start = 0; start < row.length - 2; start++) {
+        const day = row[start];
+        if (!/^\d{1,2}$/.test(day.text) || Number(day.text) > 31 || Number(day.text) < 1
+          || Math.abs(day.x - expiry.x) > expiry.height || day.y >= expiry.y
+          || expiry.y - day.y > expiry.height * 3) continue;
+        const month = row[start + 1];
+        if (!months.includes(month.text.toUpperCase())) continue;
+        const items = row.slice(start, start + 4).filter(word => word.x < expiry.x + expiry.width
+          && word.height >= month.height * 0.5);
+        const year = items.slice(2).map(word => word.text).join('');
+        if (/^[0-9OQDLIS]{4,5}$/.test(year) && digits(year).length >= 3
+          && items.every(word => !claimed.has(word.index) && !labelWords.has(word.index))) candidates.push(items);
+      }
+      // The preceding aligned date is the Philippine issue field. Mark damaged
+      // year transcription as an estimate; never infer or expose a date value.
+      if (candidates.length === 1) {
+        add('issue_date', candidates[0]);
+        detections.at(-1)!.estimated = true;
+      }
+    }
     if (birthday && expiry && birthday.y < expiry.y) {
       for (const word of indexed) {
         if (claimed.has(word.index) || labelWords.has(word.index) || word.y < birthday.y - birthday.height || word.y >= expiry.y) continue;
@@ -377,6 +402,39 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
     }
     for (const word of indexed) if (!claimed.has(word.index) && /\d{9,}/.test(word.text)) add('digits', [word]);
   }
+  if (documentGuess === 'ID') {
+    const fields = rows.flatMap((row, index) => labelsByRow[index].map(label => ({
+      category: label.rule.category, text: normalize(row.slice(label.start, label.end).map(word => word.text).join(' ')),
+      box: union(row.slice(label.start, label.end)),
+    })));
+    for (const address of detections.filter(box => box.category === 'address')) {
+      const aligned = fields.filter(field => field.box.x < address.x + address.width && field.box.x + field.box.width > address.x);
+      const above = aligned.filter(field => field.category === 'address' && field.box.y <= address.y
+        && field.box.y + field.box.height > address.y - field.box.height * 3);
+      const below = aligned.filter(field => field.category !== 'address' && field.box.y > address.y);
+      // Keep the standard three-pixel cover padding out of neighboring headings,
+      // including headings OCR grouped into a different physical text row.
+      const top = Math.max(address.y, ...above.map(field => field.box.y + field.box.height + 4));
+      const bottom = Math.min(address.y + address.height, ...below.map(field => field.box.y - 4));
+      if (bottom <= top) detections.splice(detections.indexOf(address), 1);
+      else { address.y = top; address.height = bottom - top; }
+    }
+    const holder = fields.find(field => field.category === 'signature' && /licen[cs]e[es]?/.test(field.text));
+    const expiry = fields.find(field => field.category === 'expiry_date' && holder && field.box.y < holder.box.y);
+    const column = fields.filter(field => ['full_name', 'address'].includes(field.category ?? '') && expiry && holder
+      && field.box.y < expiry.box.y && field.box.x < expiry.box.x - expiry.box.height * 3
+      && field.box.x > holder.box.x + holder.box.width).at(-1);
+    if (!detections.some(box => box.category === 'drivers_license') && holder && expiry && column
+      && holder.box.y > expiry.box.y + expiry.box.height * 4) {
+      // This Philippine license layout has its number directly left of expiry.
+      // Independent name-column and licensee-signature anchors bound the estimate
+      // when OCR loses the number or its label; no identifier text is inferred.
+      const height = expiry.box.height;
+      const x = column.box.x - height * 0.5;
+      detections.push({ id: 'pattern-license-number-area', category: 'drivers_license', estimated: true, enabled: true,
+        x, y: expiry.box.y + height * 1.25, width: expiry.box.x - height * 0.5 - x, height: height * 2 });
+    }
+  }
   if (documentGuess === 'ID' && philippinePassport) {
     const mrz = detections.filter(box => box.category === 'mrz').toSorted((a, b) => a.y - b.y);
     if (mrz.length >= 2 && mrz[1].y >= mrz[0].y + mrz[0].height) {
@@ -393,9 +451,14 @@ export function detectPatterns(words: Word[], documentGuess: DocumentGuess = gue
       if (top !== undefined) {
         // Philippine passports repeat identity details in the right-hand security print.
         // This is an estimated area, not a claim to recognize the ghost portrait or microtext.
-        const x = number ? Math.max(bounds.x, number.x - Math.max(number.width / 2, number.height * 2)) : bounds.x + bounds.width * 0.6;
+        let x = number ? Math.max(bounds.x, number.x - number.height * 0.5) : bounds.x + bounds.width * 0.6;
+        const securityTop = number ? number.y + number.height + Math.max(7, number.height * 0.5) : top;
+        const repeats = detections.filter(box => ['passport', 'full_name'].includes(box.category) && box.x >= bounds.x + bounds.width * 0.6
+          && box.y >= securityTop && box.y + box.height < mrz[0].y);
+        x = Math.min(x, ...repeats.map(box => box.x));
+        const securityRight = Math.max(bounds.x + bounds.width, ...repeats.map(box => box.x + box.width));
         detections.push({ id: 'pattern-passport-security-area', category: 'passport_security_area', enabled: true,
-          x, y: top, width: bounds.x + bounds.width - x, height: mrz[0].y - top });
+          x, y: securityTop, width: securityRight - x, height: mrz[0].y - securityTop });
         if (names.length >= 2) {
           const right = Math.min(...names.map(box => box.x));
           detections.push({ id: 'pattern-passport-portrait-area', category: 'passport_portrait_area', enabled: true,

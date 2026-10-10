@@ -23,3 +23,9 @@ test('pads and clamps boxes to image bounds and drops empty boxes', () => {
     { id: 'edge', category: 'email', enabled: true, x: 0, y: 0, width: 9, height: 10 },
   ]);
 });
+
+test('merging an estimated field preserves its uncertainty', () => {
+  const merged = mergeDetections([detection('readable', 'drivers_license', 10), { ...detection('estimated', 'drivers_license', 20), estimated: true }], 100, 100);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].estimated, true);
+});
